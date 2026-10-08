@@ -1,0 +1,18 @@
+# Pins for the legacy (Python 2.7) baseline: requirements.txt entries for exactly the packages
+# the in-scope downstream code imports (docs/PORTING_PLAN.md section 3). Image-analysis,
+# GUI, packaging, and MySQL packages are deliberately absent (replaced by stubs/emulation).
+numpy==1.13.3
+scipy==1.0.0
+pandas==0.21.1
+python-dateutil==2.2
+pytz==2014.4
+six==1.10.0
+scikit-learn==0.18.1
+pyparsing==2.0.2
+seaborn==0.8.1
+networkx==1.11
+decorator==4.0.10
+lmfit==0.9.1
+GitPython==2.1.8
+gitdb2==2.0.3
+smmap2==2.0.3
