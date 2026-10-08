@@ -96,6 +96,24 @@ Status tags: `OPEN` (needs decision/info), `FAITHFUL` (kept as-is on purpose),
 | L10 | DECIDED | `gene_key.csv` is reconstructed from the 2023 index (A9, A12). Gene-name strings in legacy outputs can therefore differ from the 2022 originals for renamed genes. IDs are unaffected. |
 | L11 | FACT | The legacy run is amd64 under emulation (Docker Desktop on Apple silicon), so floating-point semantics match the original x86-64 Windows workstation more closely than native arm64 would. |
 
+## X. Phase 1 experiment: legacy code vs. published `all_best_matches_05192022.xlsx`
+
+Run 2026-10-08 with the unmodified Py2.7 code (L1–L11) on the Zenodo sheet. Full numbers: `docs/reports/phase1_comparison.json`.
+
+| Set | Exact ordered top-10 | Mean top-10 overlap | max abs dPAD | median abs dPAD |
+|---|---|---|---|---|
+| optimal (41) | 486/503 | 0.9984 | 0.0665 | 0 |
+| GLS (58) | **503/503** | 1.0000 | 1.1e-16 | 0 |
+| MS (50) | 487/503 | 0.9986 | 0.0228 | 0 |
+
+| # | Status | Finding |
+|---|--------|---------|
+| X1 | FACT | **GLS reproduces bit-for-bit** (all 5,030 published PADs exactly, all orderings). This shows that the pipeline, the parameter selection, the hardcoded normalization, the 12-digit CSV text, and PADFilter ranking are reproduced faithfully. |
+| X2 | FACT | The optimal-set differences > 1e-6 involve mainly **EMBD 1 (teg-4) and 478** (42 of 72 pairs). The rest are ~1e-6. A further 1,638 pairs differ by 1e-9–1e-6, spread over many genes (float32-scale changes). The MS-only differences involve **EMBD 181–185, 191, 363** (MS parameters only). |
+| X3 | INFERENCE | The sheet (dumped 2023-03-21) is a **slightly different snapshot** from what each reference run read. The optimal file is dated 04/14/2022 and the GLS/MS files 05/10/2022. `fileLookup`'s note mentions "fixed arx-1 and arx-3 and fixed headInt params as of 4/14/22", and `RNAiClass` notes "CONTROL ORIGIN HAS BEEN CHANGED FOR tailHead and devHead as of 04/12/22". The genes that differ were most likely reprocessed between those dates and the dump. **The code is not the cause** (X1). → New lab question Q10. |
+| X4 | DECISION NEEDED | Golden reference for regression tests: (a) the legacy outputs computed from the sheet (exactly reproducible), with the published file as a secondary check that allows the documented differences in X2; or (b) wait for the lab to provide the 2022 snapshot. Recommendation: (a). |
+| X5 | FACT | Performance of the legacy run on 4 emulated cores: phenoDist ≈ 44–48 min per parameter set; `output_all_best_matches_to_csv_combined` **6.7 h** even with the readCSV memoization (L8). The cost is in `PADFilter` rebuilding `np.array(data)` (253k×7 mixed → strings) on each of ~4,000 calls. |
+
 ## G. groupAssesment (closest group / auto_description)
 
 | # | Status | Finding |
@@ -150,3 +168,4 @@ corresponding item updated.
 | Q7 | Can you share `gene_key.csv` and `dataValidation.py` / `SkeletonAnalysis.py` (for completeness of the archive)? | A9, C6 | — |
 | Q8 | Is the extra forward-direction PAD > 0.55 threshold in reciprocal matching intended (the paper describes only mutual top-10 membership)? | P4, B9 | — |
 | Q9 | Is the gene→group-centroid PAD quirk intended (no parameter overlap gives PAD = 1 because inf distance is replaced by 0)? | G4 | — |
+| Q10 | The published sheet differs from the inputs of the April/May 2022 PAD runs for EMBD 1, 478 (optimal set) and 181–185, 191, 363 (MS set), plus ~1e-7-level differences elsewhere. Were these genes reprocessed after 05/2022 (e.g. the head-parameter / arx fixes)? Is a dump of the `genes` table as of 05/2022 available? | X2, X3 | — |
