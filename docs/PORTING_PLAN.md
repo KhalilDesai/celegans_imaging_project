@@ -316,9 +316,11 @@ published-output path.
 
 - `getPADS`: 503² Python-level `getPAD` calls, each recomputing `getDist2Zero` twice and allocating 276-length arrays,
   across 4 parameter sets. This is vectorizable to one masked-matrix operation.
-- `getCSIS`/`getNBelow`: for each (i, j), a linear scan of `distAll` plus `r2 in rcounted` list membership. That is
-  roughly O(n⁴) ≈ 6×10¹⁰ elementary operations for n=503, and is almost certainly the dominant cost. CSI is written to the CSV but is
-  not used by the published rankings; it still has to be reproduced because it is in the CSV.
+- `getCSIS`/`getNBelow`: looks O(n⁴), but the `r2 in rcounted` membership test is short-circuited by `d <= dist`.
+  A synthetic benchmark measured ~0.3 s per row natively (≈1 min on 4 cores), so it is **not** the bottleneck I
+  first predicted (corrected 2026-10-08). The likelier cost in the legacy run is `pool.map(getPADS, zip(repeat(RNAi), …))`,
+  which pickles all 503 `RNAiClass` objects (each holding its own copies of four ~600-entry constant dicts) once per task.
+  To be measured in Phase 3.
 - `output_all_best_matches_*`: re-reads all four CSVs (≈250k rows each) **inside** the 503-iteration loop, and builds
   `RNAiClass` objects it never uses.
 - `getGeneCommonName`: re-reads `gene_key.csv` on every call (≈10 per seed).
