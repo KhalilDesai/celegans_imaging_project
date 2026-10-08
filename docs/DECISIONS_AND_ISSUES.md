@@ -112,3 +112,20 @@ checks need the PDF or the STAR Methods equations.
 | D1 | FACT | requirements.txt is a Windows dev-machine freeze (py2exe, pywin32, vboxapi, Django, PyQt4…). It pins `matplotlib==1.4.0rc2` (a release candidate) and omits `umap-learn`, `pyensembl`, and `lmfit`'s numba/asteval transitive pins. |
 | D2 | FACT | The `genes`-table pickles fallback (`RNAi_Data/EMBD####`) and `check_version=True` call git (`GitPython`) on the *analysis repo* to stamp versions. The faithful port keeps `check_version=False` (the default) and supplies a fixed version string from the data layer. |
 | D3 | FAITHFUL | `phenoDistCalc` uses `multiprocessing.Pool(6)` for PAD and CSI. Results are order-preserving (`pool.map`), so parallelism doesn't affect output. |
+
+## Q. Open questions for the Oegema/Green lab
+
+Collected 2026-10-08. Each links to the finding that raised it. Answers will be recorded here and the
+corresponding item updated.
+
+| # | Question | Raised by | Answer |
+|---|----------|-----------|--------|
+| Q1 | Why do 10 rows of the `genes` dump (embd 0, 32, 73, 109, 150, 159, 233, 295, 440, 493) hold full double-precision parameter values when all others have ≤6 significant digits? Were the parameter columns `FLOAT` (float32) when the April/May 2022 PAD files were generated? | A6 | — |
+| Q2 | Which conditions make up the published universe? The paper says 500 genes, the code loops over EMBD 1–503, and the sheet has 513 genes (1–503 plus 674, 703, 866, 885, 952, 1360, 1406, 1903, 1904, 1905). How were the 10 extra conditions added to the PAD files and best-match lists? | B10, P5 | — |
+| Q3 | Where do the hardcoded `controlOrigin`, `controlStd`, `rnaiMean`, and `rnaiStd` dicts in `RNAiClass.setOrigin` come from (date, code, embryo set)? Was `get_control_origin()` the source of `controlOrigin`? What changed for `tailHead_MS`/`devHead_MS` on 04/12/22? | R1, R2 | — |
+| Q4 | What did `fileLookup.SKIPPED` contain? It is imported in four places but absent from the repo. | C5, G6 | — |
+| Q5 | In what order were the `genes`-table derived columns populated (`update_WT_like_or_phenotype`, `update_top_hits_PAD`, `update_column_reciprocal_matches`, `update_automated_description`)? `WT_like_or_phenotype` reads `auto_description`, so the order matters. | PORTING_PLAN §2 | — |
+| Q6 | Which umap-learn (and numba, numpy) versions produced the 2022 UMAPs, and with how many threads? | C1, C2 | — |
+| Q7 | Can you share `gene_key.csv` and `dataValidation.py` / `SkeletonAnalysis.py` (for completeness of the archive)? | A9, C6 | — |
+| Q8 | Is the extra forward-direction PAD > 0.55 threshold in reciprocal matching intended (the paper describes only mutual top-10 membership)? | P4, B9 | — |
+| Q9 | Is the gene→group-centroid PAD quirk intended (no parameter overlap gives PAD = 1 because inf distance is replaced by 0)? | G4 | — |
