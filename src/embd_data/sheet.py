@@ -10,7 +10,8 @@ baseline reads, so both interpreters see bit-identical float64 values:
 * columns with an empty header (``Unnamed: 5`` in pandas) are dropped;
 * columns the original code expects but the dump lacks are added (see DECISIONS A4, R3):
   ``id`` (= ``mysql_id``; the control row gets 2627, the id hardcoded in
-  ``RNAiClass.write_controlAvg_mysql``), ``version``, ``prev_GLS``, ``prev_MS``.
+  ``RNAiClass.write_controlAvg_mysql``), ``version``, ``prev_GLS``, ``prev_MS``, and
+  ``WT_like_or_phenotype`` (NULL; computed by the pipeline before it is read, DECISIONS A15).
 
 Usage::
 
@@ -62,7 +63,8 @@ def convert_genes_table(xlsx_path, out_csv):
     if len(set(names)) != len(names):
         raise ValueError('duplicate column names in sheet')
     i_mysql, i_embd = names.index('mysql_id'), names.index('embd_id')
-    out_names = ['id'] + names + ['version', 'prev_GLS', 'prev_MS']
+    added = [c for c in ('WT_like_or_phenotype',) if c not in names]
+    out_names = ['id'] + names + ['version', 'prev_GLS', 'prev_MS'] + added
     n_null_strings = 0
     with open(out_csv, 'w', newline='', encoding='utf-8') as f:
         w = csv.writer(f, lineterminator='\n')
@@ -78,8 +80,16 @@ def convert_genes_table(xlsx_path, out_csv):
                 if embd != 0:
                     raise ValueError('missing mysql_id for embd %d' % embd)
                 mysql_id = CONTROL_MYSQL_ID
-            w.writerow([str(int(mysql_id))] + [_cell_to_text(v) for v in vals] + [DATA_VERSION, '', ''])
+            w.writerow([str(int(mysql_id))] + [_cell_to_text(v) for v in vals] + [DATA_VERSION, '', ''] + [''] * len(added))
     return {'columns': len(out_names), 'rows': len(body), 'null_strings_converted': n_null_strings}
+
+
+def _gene_name(v):
+    """Undo Excel's date auto-conversion of gene names (e.g. 'apr-1' stored as 2022-04-01; DECISIONS A16)."""
+    import datetime
+    if isinstance(v, (datetime.date, datetime.datetime)):
+        return '{0}-{1}'.format(v.strftime('%b').lower(), v.day)
+    return v or ''
 
 
 def write_gene_key(index_xlsx, out_csv):
@@ -101,7 +111,7 @@ def write_gene_key(index_xlsx, out_csv):
             n = int(r[ie])
             if n == 0:
                 continue
-            w.writerow(['EMB_P{0:04}'.format(n), r[ic] or '', r[ig] or ''])
+            w.writerow(['EMB_P{0:04}'.format(n), r[ic] or '', _gene_name(r[ig])])
 
 
 def _sha256(path):
