@@ -83,7 +83,7 @@ def bootstrap(paramset=None):
 
 
 def _move_single(pattern, dest):
-    found = sorted(glob.glob(pattern))
+    found = sorted(f for f in glob.glob(pattern) if os.path.abspath(f) != os.path.abspath(dest))
     if len(found) != 1:
         raise RuntimeError('expected exactly one file matching %r, found %r' % (pattern, found))
     shutil.move(found[0], dest)
