@@ -1,0 +1,33 @@
+[project]
+name = "embd"
+version = "0.1.0.dev0"
+description = "Python 3 port of the EMBD downstream analysis (Green et al. 2024, Cell): PAD similarity, rankings, matches, groups, UMAP"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "See LICENSE / upstream repository" }
+dependencies = [
+    "numpy>=2.0",
+    "scipy>=1.13",
+    "pandas>=2.2",
+    "scikit-learn>=1.5",
+    "matplotlib>=3.9",
+    "seaborn>=0.13",
+    "networkx>=3.3",
+    "umap-learn>=0.5.6",
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/embd", "src/embd_data"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: full 503-gene pipeline (minutes); run with -m slow"]
+addopts = "-m 'not slow'"

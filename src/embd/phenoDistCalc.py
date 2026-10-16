@@ -1,0 +1,206 @@
+'''
+Port of development/phenoDistCalc.py (Created on Mar 7, 2016, @author: Becky).
+
+Changes: py3 syntax; numbers written to the CSV via py2_str (Python 2 '{}'.format rendering,
+12 significant digits; DECISIONS B6) so the file is byte-identical; the output file name is a
+parameter (default: the original date-stamped name, under FOLDER_IN instead of 'Z:\\');
+np.float -> float. getCSIPAD and optimizePAD are ported as-is although they were already broken
+in the original (undefined names r2/d; RNAiClass.setNDPosWeights does not exist).
+'''
+import multiprocessing as mp
+import time
+from itertools import repeat
+
+import numpy as np
+
+from ._compat import py2_str
+from .params_use_assign import get_params_use
+from .RNAiClass import RNAiClass
+from .varLookup import FOLDER_IN, PARAM_NAMES, printLog
+
+PARAM_NAMES_USE_GLS, PARAM_NAMES_USE_MS = get_params_use()
+
+
+def getCSIS(input):
+    distAll, i = input
+    print('csi', i)
+    csiRNAi = []
+    for j in range(len(distAll[i])):
+        n1 = len(distAll[
+                     i]) - j  # number of genes with distance less than interacting gene j including this gene (count below, because small distance ~ high pcc)
+        r1, r2, d, d20, nOv, pad = distAll[i][j]
+        rcounted = [rt2 for rt1, rt2, dt, d20, nOv, pad in distAll[i][j:]]
+        n2 = getNBelow(distAll, r2, d, rcounted)
+        csiRNAi.append(1 - 1. * (n1 + n2) / len(distAll))
+    return csiRNAi
+
+
+def getCSI(distAll):
+    pool = mp.Pool(processes=6)
+    csiListAll = pool.map(getCSIS, zip(repeat(distAll), range(len(distAll))))
+    pool.close()
+    pool.join()
+    return csiListAll
+
+
+def getCSIPAD(distAll):
+    csiListAll = []
+    for i in range(len(distAll)):
+        print('csi', i)
+        csiRNAi = []
+        for j in range(len(distAll[i])):
+            padth = distAll[i][j][5]
+            data = np.array(distAll[i])
+            pads = data[:, 5].astype(float)
+            n1 = np.sum(pads >= padth)
+            rcounted = data[:, 1][np.where(pads >= padth)]
+            n2 = getNAbovePAD(distAll, r2, d, rcounted)  # noqa: F821 (undefined in the original too)
+            csiRNAi.append(1 - 1. * (n1 + n2) / len(distAll))
+        csiListAll.append(csiRNAi)
+    return csiListAll
+
+
+def getNBelow(distAll, rna, dist, rcounted):
+    for i in range(len(distAll)):
+        if distAll[i][0][0] == rna:
+            dists = [d for (r1, r2, d, d20, nOv, pad) in distAll[i] if d <= dist and not (r2 in rcounted)]
+            return len(dists)
+    return 0
+
+
+def getNAbovePAD(distAll, rna, padth, rcounted):
+    data = np.array(distAll)
+    data = data[np.where(data[:, 0] == rna)[0]]
+    for i in range(len(distAll)):
+        if distAll[i][0][0] == rna:
+            pads = [pad for (r1, r2, d, d20, nOv, pad) in distAll[i] if pad >= padth and not (r2 in rcounted)]
+            return len(pads)
+    return 0
+
+
+def getPADS(input):
+    RNAi, i = input
+    print('distance', i)
+    distRNAi = []
+    for j in range(len(RNAi)):
+        distRNAi.append((RNAi[i].label, RNAi[j].label, RNAi[i].getDistance(RNAi[j]),
+                         RNAi[i].getDist2Zero(), RNAi[i].getOverlapDims(RNAi[j]), RNAi[i].getPAD(RNAi[j])))
+    distRNAi.sort(key=lambda x: x[2])
+    d = distRNAi[::-1]  # sort given rnai list by distance to another rnai (large first)
+    return d
+
+
+def optimizePAD(rGroups, c):
+    raise NotImplementedError('phenoDistCalc.optimizePAD was already broken in the original '
+                              '(calls RNAiClass.setNDPosWeights, which does not exist)')
+
+
+def getParamsNorms():
+    RNAi = []
+    for i in range(1, 504):
+        try:
+            r = RNAiClass(i, verb=True)
+            RNAi.append(r)
+        except Exception as e:
+            printLog('!!!!!!!!!ERROR OCCURED RNAi {0} :{1}'.format(i, str(e)))
+
+    pAllRNAi, pMean, pSTD = {}, {}, {}
+    for key in PARAM_NAMES:
+        pAllRNAi[key + '_GLS'] = []
+        pAllRNAi[key + '_MS'] = []
+        for r in RNAi:
+            pAllRNAi[key + '_GLS'].append(r.paramsGLS[key])
+            pAllRNAi[key + '_MS'].append(r.paramsMS[key])
+        pMean[key + '_GLS'] = np.nanmean(pAllRNAi[key + '_GLS'])
+        pSTD[key + '_GLS'] = np.nanstd(pAllRNAi[key + '_GLS'])
+        pMean[key + '_MS'] = np.nanmean(pAllRNAi[key + '_MS'])
+        pSTD[key + '_MS'] = np.nanstd(pAllRNAi[key + '_MS'])
+    return pMean, pSTD
+
+
+def get_RNAi_object_list(embd_ids=range(1, 504)):
+    """
+    :return: a list of RNAi objects for the genes in range
+    """
+    RNAi = []
+    for i in embd_ids:
+        try:
+            r = RNAiClass(i, verb=True)
+            r.setNDPosition()
+            RNAi.append(r)
+        except Exception as e:
+            printLog('!!!!!!!!!ERROR OCCURED RNAi {0} :{1}'.format(i, str(e)))
+    return RNAi
+
+
+def calc_pairwise_metrics(RNAi):
+    """
+    calculates pairwise metrics (distance, PAD, CSI) for a list of RNAi conditions
+    """
+    print("check params used!")
+    pool = mp.Pool(processes=6)
+    distAll = pool.map(getPADS, zip(repeat(RNAi), range(len(RNAi))))
+    pool.close()
+    pool.join()
+    csi = getCSI(distAll)
+    return distAll, csi
+
+
+def write_phenodistinfo_to_CSV(RNAi, distAll, csi, fileName=None):
+    """
+    writes into csv file RNAi pair, distance, distance to wt, dimensions, CSI and PAD values for each pair of RNAi conditions
+    """
+    if fileName is None:
+        fileName = FOLDER_IN + 'phenoDist_rank_{d}.csv'.format(d=time.strftime('%m%d%Y'))
+    fd = open(fileName, 'w', newline='')
+
+    pUsed = ''
+    for p in PARAM_NAMES_USE_GLS:
+        pUsed += '{0},'.format(p)
+    fd.write('params used GLS=,' + pUsed + '\n')
+    pUsed = ''
+    for p in PARAM_NAMES_USE_MS:
+        pUsed += '{0},'.format(p)
+    fd.write('params used MS=,' + pUsed + '\n')
+    fd.write('RNA1,RNA2,dist,dist2WT,dims,CSI,PAD\n')
+    for i in range(len(RNAi)):
+        for j in range(len(RNAi)):
+            r1, r2, d, d20, nOv, pad = distAll[i][j]
+            fd.write('{0},{1},{2},{3},{4},{5},{6}\n'.format(r1, r2, py2_str(d), py2_str(d20), py2_str(nOv),
+                                                            py2_str(csi[i][j]), py2_str(pad)))
+    fd.close()
+    return fileName
+
+
+def write_phenodistinfo_to_mySQL(RNAi, distAll, csi):
+    """
+    populates pairwise distance, pad and csi data into the (emulated) MySQL table pair_lookup.
+    """
+    from .db_utils_embryos import initialize_db, insert_row, update_row
+    conn, cursor = initialize_db()
+    table = "pair_lookup"
+
+    for i in range(len(RNAi)):
+        print(i)
+        for j in range(len(RNAi)):
+            r1, r2, d, d20, ov_dims, pad = distAll[i][j]
+            cs = csi[i][j]
+            colms = {'rnai1': int(r1[4:]), 'rnai2': int(r2[4:]), 'dist': d, 'dist2wt': d20, 'dims': ov_dims, 'CSI': cs,
+                     'PAD': pad}
+            if r1 != r2:
+                sql = "SELECT id FROM {t} WHERE rnai1={r1} AND rnai2={r2}".format(t=table, r1=int(r1[4:]), r2=int(r2[4:]))
+                cursor.execute(sql)
+                vals = cursor.fetchall()
+                if len(vals) > 0:
+                    update_row(vals[0][0], colms, cursor, table)
+                elif len(vals) == 0:
+                    insert_row(colms, cursor, table)
+        conn.commit()
+    conn.close()
+
+
+def run_phenodistcalc_populate(fileName=None, embd_ids=range(1, 504)):
+    '''run phenoDistCalc to populate csv and/or mySQL'''
+    RNAi = get_RNAi_object_list(embd_ids)
+    distAll, csi = calc_pairwise_metrics(RNAi)
+    return write_phenodistinfo_to_CSV(RNAi, distAll, csi, fileName)
