@@ -26,6 +26,7 @@ def compare(golden_path, port_path):
     pk = {(b[0], b[1]): b for b in P}
     cols = ['dist', 'dist2WT', 'dims', 'CSI', 'PAD']
     diff_lines, maxabs, maxrel, n_text = 0, {c: 0.0 for c in cols}, {c: 0.0 for c in cols}, {c: 0 for c in cols}
+    max12 = {c: 0.0 for c in cols}
     for a in G:
         b = pk[(a[0], a[1])]
         if a != b:
@@ -36,10 +37,14 @@ def compare(golden_path, port_path):
                 x, y = float(a[k]), float(b[k])
                 if np.isfinite(x) and np.isfinite(y):
                     maxabs[c] = max(maxabs[c], abs(x - y))
+                    # size of the difference in units of the 12th significant digit of the legacy value
+                    unit = 10.0 ** (np.floor(np.log10(abs(x))) - 11) if x != 0 else 1e-300
+                    max12[c] = max(max12[c], abs(x - y) / unit)
                     if x != 0:
                         maxrel[c] = max(maxrel[c], abs(x - y) / abs(x))
     res.update({'rows_differing': diff_lines, 'fields_differing_text': n_text,
-                'max_abs_diff': maxabs, 'max_rel_diff': maxrel})
+                'max_abs_diff': maxabs, 'max_rel_diff': maxrel,
+                'max_diff_in_12th_digit_units': max12})
     # ranking check: PADFilter semantics (argsort of file-order PADs, reversed, skip first), top 51
     def ranks(rows):
         by = {}

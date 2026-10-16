@@ -148,6 +148,10 @@ def export_table(table, dest, columns=None):
 
 def _sub(*args, paramset=None):
     env = dict(os.environ)
+    # Do not rely on the editable-install .pth file: macOS can flag it hidden and Python >= 3.12.8
+    # then skips it (DECISIONS P2-8).
+    src = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env['PYTHONPATH'] = src + (os.pathsep + env['PYTHONPATH'] if env.get('PYTHONPATH') else '')
     if paramset:
         env['EMBD_PARAMSET'] = paramset
     subprocess.check_call([sys.executable, '-m', 'embd.pipeline'] + list(args), env=env)

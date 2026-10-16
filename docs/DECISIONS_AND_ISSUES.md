@@ -130,6 +130,7 @@ Run 2026-10-08 with the unmodified Py2.7 code (L1–L11) on the Zenodo sheet. Fu
 | P2-5 | DECIDED | Already-broken original functions on no output path (`phenoDistCalc.optimizePAD`, `getCSIPAD`; most of `groupAssesment`'s experiment functions) are ported as-is or listed as not yet ported. They are never silently "fixed". |
 | P2-6 | DECIDED | `PADassist.get_data_from_mysql` uses SQLite string syntax instead of MySQL `CONCAT/LPAD` (the emulation does not translate functions). It is not used by the pipeline, which reads the CSV (`get_data`). |
 | P2-7 | FACT | Port timing (Apple-silicon laptop, native): phenoDist ≈ 56–86 s per parameter set, against 44–48 min for the legacy run under amd64 emulation. |
+| P2-8 | FACT | macOS set the `hidden` file flag on the venv's `.pth` files after creation (the project sits in `~/Desktop`, possibly iCloud-synced), and CPython ≥ 3.12.8 skips hidden `.pth` files, so `import embd` failed mid-run. Fixed with `chflags nohidden`; `pipeline.py` now sets `PYTHONPATH` for its subprocesses. The production container (Phase 4) is unaffected. |
 
 ## G. groupAssesment (closest group / auto_description)
 

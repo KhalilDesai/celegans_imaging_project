@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.join(REPO, 'tests'))
 SETS = ('opt', 'gls', 'ms', 'all')
 PHENODIST = {'opt': 'phenoDist_rank_04142022.csv', 'gls': 'phenoDist_rank_GLS_ONLY05102022.csv',
              'ms': 'phenoDist_rank_MS_ONLY05102022.csv', 'all': 'phenoDist_rank_ALL_PARAMS05102022.csv'}
-PAD_ATOL_TEXT = 2e-12   # N1: two units in the 12th printed digit
+TEXT_12TH_DIGIT_UNITS = 2.0  # N1: printed values may differ by <= 2 units in the 12th significant digit
 MATRIX_RTOL = 1e-13     # N1: full-precision PAD / distance matrices
 SAMPLE_SEEDS = [1, 2, 3, 13, 45, 76, 87, 117, 181, 185, 255, 310, 363, 408, 434, 478, 503]
 
@@ -149,9 +149,10 @@ def test_phenodist_csv(full_run, ps):
     r = compare(os.path.join(GOLDEN, 'phenodist_%s.csv.xz' % ps), os.path.join(full_run, PHENODIST[ps]))
     assert r['header_identical'] and r['row_order_identical']
     assert r['n_lines'][0] == r['n_lines'][1]
-    for c in ('dist', 'dist2WT', 'dims', 'CSI'):
+    for c in ('dims', 'CSI', 'dist2WT'):
         assert r['fields_differing_text'][c] == 0, (c, r)
-    assert r['max_abs_diff']['PAD'] <= PAD_ATOL_TEXT, r
+    for c in ('dist', 'PAD'):
+        assert r['max_diff_in_12th_digit_units'][c] <= TEXT_12TH_DIGIT_UNITS, (c, r)
     assert r['seeds_top51_identical'] == r['n_seeds'] == 503
 
 
@@ -169,7 +170,6 @@ def test_matrices(full_run, ps, kind):
 @pytest.mark.parametrize('golden_name,port_name', [
     ('all_best_matches.csv', 'all_best_matches_port.csv'),
     ('hits_matrix_v2.csv', 'hits_matrix_v2_port.csv'),
-    ('pad_rank.csv', 'pad_rank_port.csv'),
     ('genes_derived.csv', 'genes_derived_port.csv'),
 ])
 def test_derived_outputs_identical(full_run, golden_name, port_name):
@@ -177,8 +177,48 @@ def test_derived_outputs_identical(full_run, golden_name, port_name):
     g = golden_lines(golden_name)
     with open(os.path.join(full_run, port_name), encoding='utf-8') as f:
         p = f.read().splitlines()
-    if golden_name in ('pad_rank.csv', 'genes_derived.csv'):
+    if golden_name == 'genes_derived.csv':
         g, p = list(csv.reader(g)), list(csv.reader(p))
     assert len(g) == len(p)
     bad = [(i, a, b) for i, (a, b) in enumerate(zip(g, p)) if a != b]
     assert not bad, bad[:5]
+
+
+@pytest.mark.slow
+def test_pad_rank(full_run):
+    """N2: ranks exact; stored PADs identical after the MySQL FLOAT rendering the code reads (thresholds
+    0.5 / 0.55 act on these) and within 1 ulp raw (legacy SQLite's decimal parser is not correctly rounded)."""
+    from embd_data.mysql_emulation import mysql_float_render
+    g = list(csv.reader(golden_lines('pad_rank.csv')))
+    with open(os.path.join(full_run, 'pad_rank_port.csv'), encoding='utf-8') as f:
+        p = list(csv.reader(f.read().splitlines()))
+    assert g[0] == p[0] and len(g) == len(p) == 504
+    h = g[0]
+    for a, b in zip(g[1:], p[1:]):
+        for k, name in enumerate(h):
+            if name.startswith('pad'):
+                x, y = float(a[k]), float(b[k])
+                assert mysql_float_render(x) == mysql_float_render(y), (a[1], name)
+                assert abs(x - y) <= np.spacing(max(abs(x), abs(y))), (a[1], name, x, y)
+            else:
+                assert a[k] == b[k], (a[1], name)
+
+
+def _knn(E, k=15):
+    d = ((E[:, None, :] - E[None, :, :]) ** 2).sum(-1)
+    np.fill_diagonal(d, np.inf)
+    return np.argsort(d, axis=1)[:, :k]
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize('ps', SETS)
+def test_umap_structure(full_run, ps):
+    """N3: UMAP is not bit-reproducible even with the ORIGINAL code (3 legacy reruns: kNN-15 overlap
+    0.78-0.83 with the golden run). Require the port to stay within that run-to-run band."""
+    from sklearn.manifold import trustworthiness
+    g = golden_npy('umap_points_%s.npy' % ps)
+    p = np.load(os.path.join(full_run, 'umap_points_%s.npy' % ps))
+    X = golden_npy('pad_matrix_%s.npy' % ps)
+    overlap = np.mean([len(set(a) & set(b)) / 15. for a, b in zip(_knn(g), _knn(p))])
+    assert overlap >= 0.75, overlap
+    assert trustworthiness(X, p, n_neighbors=15) >= 0.96
