@@ -4,7 +4,7 @@ Reference: `tests/golden/` (legacy outputs, DECISIONS X4 option (a)). Each entry
 why, by how much, and the test tolerance with its justification. Entries marked **PENDING** need
 maintainer approval (rule: a library upgrade that changes numerical output must be shown and approved).
 
-## N1. Euclidean norm summation order (BLAS) — PENDING approval
+## N1. Euclidean norm summation order (BLAS) — APPROVED 2026-10-16 (maintainer)
 
 - **What:** `np.linalg.norm` (used by `embdFunc.getNDDistance`) computes `sqrt(dot(x, x))` through
   BLAS. Legacy: numpy 1.13.3 with its bundled x86-64 OpenBLAS (under amd64 emulation). Port:
