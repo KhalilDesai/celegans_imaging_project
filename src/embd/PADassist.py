@@ -6,8 +6,8 @@ Changes (docs/DECISIONS_AND_ISSUES.md, section P2):
   original date-stamped name;
 * OUTPUT-NEUTRAL SPEED-UPS (maintainer request 2026-10-16): ``readCSV`` results of the four
   phenoDist files are memoised (the original re-read four 253k-row files on each of 503
-  iterations), and ``PADFilter`` reuses the ``np.array(data)`` conversion of the same list
-  object instead of rebuilding it on every call. Both are pure caches of unchanged inputs;
+  iterations), and ``PADFilter``/``CSIFilter``/``distFilter`` find a seed's rows through a label index built
+  once per list instead of converting the whole list to a string array on every call. Both are pure caches of unchanged inputs;
   results are identical (tests/test_port_regression.py);
 * movies/images (show_best_match_movies, make_movies, convert_tifstack2mp4), Yanai-cluster
   lookups (CSV not public) and functions needing the missing dataValidation module are not ported.
@@ -47,14 +47,23 @@ def readCSV(fileName, delimiter=' '):
     return _CSV_CACHE[key]
 
 
-def _as_array(data):
-    """np.array(data) for the same (unmodified) list object is computed once."""
+def _rows_for(data, rnaName):
+    """Indices of the rows of ``data`` whose first field equals ``rnaName``, ascending.
+
+    Identical to the original ``np.where(np.array(data)[:, 0] == rnaName)[0]`` but uses a label->rows
+    index built once per (unchanged) list object instead of converting the whole 253k x 7 list to a
+    string array on every call (that conversion was ~230 MB per file in numpy 2 and caused an
+    out-of-memory kill on an 8 GB machine).
+    """
     k = id(data)
     hit = _ARRAY_CACHE.get(k)
     if hit is None or hit[0] is not data or hit[1] != len(data):
-        hit = (data, len(data), np.array(data))
+        index = {}
+        for i, row in enumerate(data):
+            index.setdefault(str(row[0]), []).append(i)
+        hit = (data, len(data), {lab: np.array(ix, dtype=np.intp) for lab, ix in index.items()})
         _ARRAY_CACHE[k] = hit
-    return hit[2]
+    return hit[2].get(rnaName, np.array([], dtype=np.intp))
 
 
 def clear_caches():
@@ -74,8 +83,7 @@ def PADFilter(rnaName, data, nTop):
     if isinstance(rnaName, int):
         rnaName = 'EMBD{r:04}'.format(r=rnaName)
     nTop = nTop
-    dataA = _as_array(data)  # original: np.array(data)
-    inds = np.where(dataA[:, 0] == rnaName)[0]
+    inds = _rows_for(data, rnaName)  # original: np.where(np.array(data)[:, 0] == rnaName)[0]
     dRNA = [data[i] for i in inds]
     pads = [p[6] for p in dRNA]  # this is PAD
     inds = np.argsort(pads)[::-1]
@@ -84,8 +92,7 @@ def PADFilter(rnaName, data, nTop):
 
 
 def CSIFilter(rnaName, data):
-    dataA = _as_array(data)
-    inds = np.where(dataA[:, 0] == rnaName)[0]
+    inds = _rows_for(data, rnaName)
     dRNA = [data[i] for i in inds]
     pads = [p[5] for p in dRNA]  # this is CSI
     inds = np.argsort(pads)[::-1]
@@ -94,8 +101,7 @@ def CSIFilter(rnaName, data):
 
 
 def distFilter(rnaName, data):
-    dataA = _as_array(data)
-    inds = np.where(dataA[:, 0] == rnaName)[0]
+    inds = _rows_for(data, rnaName)
     dRNA = [data[i] for i in inds]
     pads = [p[2] for p in dRNA]  # this is Euclidean distance
     inds = np.argsort(pads)[::-1]

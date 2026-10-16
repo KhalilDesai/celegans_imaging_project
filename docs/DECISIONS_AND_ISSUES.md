@@ -119,6 +119,18 @@ Run 2026-10-08 with the unmodified Py2.7 code (L1–L11) on the Zenodo sheet. Fu
 | X7 | FACT | Derived columns vs the published 052422 CSV (legacy public code, after A15/A16 fixes): `top_hits_PAD` identical for 488/503 genes, and **all 15 differences involve EMBD 1/478** (X2). `reciprocal_matches` identical for 475/503: 10 differences involve EMBD 1/478, 6 follow from `auto_description` differences (X6), and 12 are classification differences. In those 12, the published file says "no arrest phenotype" but the public code lists hits: 9 genes have `movement` 0 in one strain (public rule: either strain 0 → Phenotype), and 3 are "slow pace" (public rule → Dev. Delay). The published run used a different WT-like rule or run order (Q5, Q11). Name aliases learned between the 2022 and 2023 names (unambiguous): `cco-2`=`cox-5A`, `C01G5.2`=`prg-1`, `pacs-1`=`paic-1`. |
 | X8 | FACT | Legacy wall-clock timings are **not** a valid performance baseline: the identical `bestmatches_combined` step took 6.7 h on the first run and 40 h on the rerun (laptop sleep/contention under amd64 emulation). Phase 3 will re-measure under controlled conditions (no sleep, a fixed workload subset, repeated runs). |
 
+## P2. Python 3 port (Phase 2): decisions
+
+| # | Status | Item |
+|---|--------|------|
+| P2-1 | DECIDED | Module and function names mirror the originals (`src/embd/RNAiClass.py`, `PADassist.py`, …), so each ported function can be diffed against its source. `groupAssesment.py` and `_rnai_constants.py` are **generated** from the original files by scripts in `tools/`, and the edits are listed in those scripts. |
+| P2-2 | DECIDED | The parameter set is selected with `EMBD_PARAMSET` (opt/gls/ms/all), read by `get_params_use()`. The environment variable is inherited by multiprocessing workers (macOS spawns them), and each set runs in its own process as in the original (L5). |
+| P2-3 | DECIDED | Python-2 number rendering in written files is reproduced by `_compat.py2_str` (`'%.12g'` plus `'.0'` for integral values), as verified against every sampled field of the golden CSV. Used in the phenoDist CSV writer, the `insert_row/update_row` SQL values, and the `str(val)[0:5]` truncation in hits_matrix_v2. |
+| P2-4 | DECIDED | **Output-neutral speed-ups, per maintainer request (2026-10-16):** `PADassist.readCSV` is memoised on (path, mtime, size). `PADFilter`/`CSIFilter`/`distFilter` find a seed's rows through a label→row-indices index built once per list, instead of `np.where(np.array(data)[:, 0] == name)` on every call; `tests/test_port_units.py` tests the equivalence. A first version cached the whole `np.array(data)`, which is ~230 MB per file in numpy 2 because the mixed rows become fixed-width unicode, and the best-matches step was **OOM-killed** on this 8 GB machine (4 GB held by the Docker VM). It was replaced by the label index. |
+| P2-5 | DECIDED | Already-broken original functions on no output path (`phenoDistCalc.optimizePAD`, `getCSIPAD`; most of `groupAssesment`'s experiment functions) are ported as-is or listed as not yet ported. They are never silently "fixed". |
+| P2-6 | DECIDED | `PADassist.get_data_from_mysql` uses SQLite string syntax instead of MySQL `CONCAT/LPAD` (the emulation does not translate functions). It is not used by the pipeline, which reads the CSV (`get_data`). |
+| P2-7 | FACT | Port timing (Apple-silicon laptop, native): phenoDist ≈ 56–86 s per parameter set, against 44–48 min for the legacy run under amd64 emulation. |
+
 ## G. groupAssesment (closest group / auto_description)
 
 | # | Status | Finding |

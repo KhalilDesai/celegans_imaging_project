@@ -97,3 +97,19 @@ def test_out_of_scope_paths_raise():
         myFunc.loadImTif('x.tif')
     with pytest.raises(NotImplementedError, match='image analysis not yet ported'):
         R.get_control_origin()
+
+
+def test_padfilter_row_index_equals_original_np_where():
+    """The output-neutral label index must select exactly the rows the original np.where selected."""
+    from embd import PADassist
+    rng = np.random.default_rng(0)
+    data = [['EMBD%04d' % rng.integers(1, 6), 'EMBD%04d' % j, 1.0, 2.0, 3.0, 0.0, float(rng.random())]
+            for j in range(200)]
+    for name in ['EMBD0001', 'EMBD0003', 'EMBD0005', 'EMBD0009']:
+        expected = np.where(np.array(data)[:, 0] == name)[0]
+        assert np.array_equal(PADassist._rows_for(data, name), expected)
+        orig_inds = np.where(np.array(data)[:, 0] == name)[0]
+        dRNA = [data[i] for i in orig_inds]
+        pads = [p[6] for p in dRNA]
+        orig = [(dRNA[i][1], dRNA[i][6], dRNA[i][4]) for i in np.argsort(pads)[::-1][1:4]]
+        assert PADassist.PADFilter(name, data, 3) == orig
