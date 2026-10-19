@@ -56,13 +56,60 @@ explicit unit in the code. A producer should still document its own units. The P
 `(value − control origin) / RNAi std` (DECISIONS B2), so any change of units must be applied consistently to
 the hardcoded normalisation constants in `RNAiClass.setOrigin`.
 
-## 3. Missing-value convention
+## 3. Missing-value convention: 0 vs NULL
 
-- **NaN (empty cell or the string `'NULL'`) means the parameter is unavailable for that condition**, e.g. a
-  marker was not expressed, no embryo passed `checkGoodParam`, or the strain was not imaged. It is **not** 0.
-- `0` is a legitimate measured value (3,385 zeros in the 2022 table; DECISIONS A7).
-- PAD handles NaN through overlap and a penalty: coordinates present in only one of the two vectors inflate the
-  distance by `sqrt(N / (N − i1 − i2))` (DECISIONS B1).
+The convention is not documented by the authors, but the original code applies it consistently.
+**0 means "measured, and the answer is zero/absent". NULL (NaN) means "undefined, or could not be
+measured".** A producer of this table must reproduce it, because PAD treats the two very differently.
+
+### 3.1 Per embryo (`embryos_analyze/Embryos.py`)
+
+Every parameter starts as NaN (l. 119) and is overwritten only when it can be computed.
+
+- **Marker never switches on → amplitudes 0, timings NaN.** Instead of fitting a sigmoid, the code assigns:
+
+  | Strain, trigger | Set to 0 | Set to NaN | Other |
+  |---|---|---|---|
+  | GLS `setSigmParams` (l. 1705): ≤ 5 time points with > 20 nuclei in that colour | `a*`, `s*`, `*tail`, `*tailErr`, `aErr`, `sErr` | `m*`, `r*`, `residsEarly*`, `mErr`, `rErr` | `residsLate*` = mean of the control curve |
+  | MS `setSigmParams` (l. 776): total intensity `maxG` ≤ 3e8 or `maxR` ≤ 1.5e8 | `a*`, `b*`, `s*` and their errors, `rErr` | `m*`, `r*`, `mErr` | `movement` = 0, `tMove` = NaN |
+
+  Rationale: "zero nuclei / no signal" is a measurement; "the midpoint of a curve that never rose" is undefined.
+- **Shape/position curves (CoM*, MoI*; `setCM_MoIParams`, l. 380):**
+  - ≤ 2 valid points → **sentinel values, not NaN**: `td = 0`, `scale = 1`, `avgRes = −mean(control curve)`, `stdTail = 0`;
+  - the curve deviates only at its last points → `avgRes = 0`, `stdTail = 0`.
+- **Derived differences** (`mRmG`, `mYmG`, `mYmR`) are computed only if both midpoints pass `checkGoodParam`.
+  Otherwise they stay NaN.
+- **Head-enclosure parameters (MS)** when the sigmoid+bump fit is not attempted: `mSigHead`, `sSigHead`,
+  `mGaussHead`, `sGaussHead` = NaN; `aGaussHead` = 0. Since 04/07/2022, `tailHead`, `scaleHead`, `devHead` are
+  computed in both branches. Before that they were 0/NaN (comments at l. 904–908), which is likely one reason the
+  published sheet differs from the 2022 runs for some genes (DECISIONS X3).
+
+### 3.2 Per condition (`RNAiClass.calcAverageParams`, `Embryo.checkGoodParam` l. 510)
+
+The gene value is the median over usable embryos whose value passes `checkGoodParam`:
+- NaN never passes;
+- a positive value with an error passes if error/value < 0.5;
+- 0 (or a negative value) always passes, because the 50% test only applies to positive values.
+
+So a gene-level value is:
+- **0** when its embryos genuinely measured zero;
+- **NULL** when no embryo produced a usable value: the parameter was undefined, every fit was too uncertain, or
+  no embryos of that strain were usable.
+
+NaN is written to MySQL as `NULL` (`db_utils_embryos.update_row`).
+
+### 3.3 Consequence for PAD
+
+- **0 is a real coordinate.** After normalisation `(0 − control mean) / RNAi std`, it lies far from the
+  control origin and contributes strongly to distances ("no endoderm" is a large phenotype).
+- **NULL drops the dimension.** If only one of two genes has it, the distance is inflated by
+  `sqrt(N / (N − i1 − i2))` (DECISIONS B1). If neither has it, it is ignored.
+- There are 3,385 zeros in the 2022 table (DECISIONS A7).
+
+### 3.4 In the published sheet
+
+Missing values appear as the text `'NULL'` (2,050 parameter cells) and as truly empty cells (4 parameter cells).
+Nothing in the code distinguishes them. Both load as NaN, as in the original MySQL path (DECISIONS A3).
 
 ## 4. Precision
 
