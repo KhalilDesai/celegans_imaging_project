@@ -11,6 +11,15 @@ KEEP = ['getDist2WT', 'getDist2EO', 'getDist2AVG', 'getAvgVector', 'getPAD2EO', 
         'find_closest_groups', 'get_closest_group_description', 'get_group_description',
         'get_all_closest_groups', 'make_UMAP_content_files']
 EDITS = [
+    # NOTE (comment only, no behaviour change; DECISIONS A17): duplicated genes in the manual groups.
+    ("    stable list to access the 17 groups genes\n    :return: rnaiList, labels, defect_label\n    \'\'\'\n",
+     "    stable list to access the 17 groups genes\n    :return: rnaiList, labels, defect_label\n    \'\'\'\n"
+     "    # NOTE (port, DECISIONS A17): three genes were knocked down twice in EMBD 1-503, most likely by accident\n"
+     "    # (it was not clear at the time that they were the same gene): elt-1 = EMBD 16 & 34, vab-1 = 27 & 73,\n"
+     "    # apx-1 = 31 & 315. The original code never picks one: both are separate conditions everywhere. Here the\n"
+     "    # 'dorsRupt' group [34, 16, 31, 264] contains BOTH elt-1 conditions (two replicates of one gene), which\n"
+     "    # makes that group look tighter and slightly biases the group-based parameter optimisation and the\n"
+     "    # centroid descriptions. 315, 27 and 73 are in no group. Kept as published; not changed pending a decision.\n"),
     # PORT (perf, PERFORMANCE #4): all-pairs PAD / distance rows computed by _fast.PairwiseRows, which is
     # bit-identical to the per-pair RNAiClass.getPAD / getDistance calls it replaces.
     ("    pad = []\n    for i in range(len(rna_list)):\n        for j in range(len(rna_list)):\n            p = rna_list[i].getPAD(rna_list[j])",

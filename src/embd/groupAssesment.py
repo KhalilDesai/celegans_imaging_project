@@ -169,6 +169,12 @@ def get_manual_groups():
     stable list to access the 17 groups genes
     :return: rnaiList, labels, defect_label
     '''
+    # NOTE (port, DECISIONS A17): three genes were knocked down twice in EMBD 1-503, most likely by accident
+    # (it was not clear at the time that they were the same gene): elt-1 = EMBD 16 & 34, vab-1 = 27 & 73,
+    # apx-1 = 31 & 315. The original code never picks one: both are separate conditions everywhere. Here the
+    # 'dorsRupt' group [34, 16, 31, 264] contains BOTH elt-1 conditions (two replicates of one gene), which
+    # makes that group look tighter and slightly biases the group-based parameter optimisation and the
+    # centroid descriptions. 315, 27 and 73 are in no group. Kept as published; not changed pending a decision.
     rnaiList = [[21, 364, 408, 130], [264, 386, 31, 32, 255, 388, 422, 118, 359], [417, 64, 115, 281, 77],
                 [63, 19, 501, 77], [181, 182, 357], [184, 185, 154, 363, 117, 45, 447, 108], [34, 16, 31, 264],
                 [9, 398, 435, 45, 52, 38],

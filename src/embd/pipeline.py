@@ -26,6 +26,9 @@ SETS = ('opt', 'gls', 'ms', 'all')
 PHENODIST = {'opt': 'phenoDist_rank_04142022.csv', 'gls': 'phenoDist_rank_GLS_ONLY05102022.csv',
              'ms': 'phenoDist_rank_MS_ONLY05102022.csv', 'all': 'phenoDist_rank_ALL_PARAMS05102022.csv'}
 UNIVERSE = range(1, 504)  # DECISIONS A10
+# NOTE (DECISIONS A17): EMBD 1-503 are 503 RNAi conditions but 500 unique genes. elt-1 (16 & 34), vab-1 (27 & 73)
+# and apx-1 (31 & 315) were each knocked down twice, most likely by accident. The original pipeline treats every
+# condition as a separate gene (so, e.g., the two elt-1 conditions are each other's #1 match). Kept as published.
 
 
 def _out():
