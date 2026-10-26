@@ -258,10 +258,11 @@ def calc_pairwise_metrics(RNAi):
 
     """
     print("check params used!")
-    pool = mp.Pool(processes=6)
-    distAll = pool.map(getPADS, zip(repeat(RNAi), range(len(RNAi))))
-    pool.close()
-    pool.join()
+    # PORT (perf, PERFORMANCE #4): row-vectorised and bit-identical to the original
+    #   pool = mp.Pool(processes=6); distAll = pool.map(getPADS, zip(repeat(RNAi), range(len(RNAi))))
+    # (the pool pickled all 503 RNAiClass objects for every task; getPADS is kept as the reference).
+    from ._fast import getPADS_all
+    distAll = getPADS_all(RNAi)
     csi = getCSI(distAll)
     return distAll, csi
 

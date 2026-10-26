@@ -111,9 +111,12 @@ def get_all_PAD2EO(rna_list):
     OUTPUT: numpy array of PAD values for
     '''
     pad = []
+    from ._fast import PairwiseRows  # PORT (perf #4)
+    _rows = PairwiseRows(rna_list)  # PORT (perf #4)
     for i in range(len(rna_list)):
+        _row_i = _rows.row(i)[1]  # PORT (perf #4): == [rna_list[i].getPAD(r) for r in rna_list], bit-identical
         for j in range(len(rna_list)):
-            p = rna_list[i].getPAD(rna_list[j])  # gets the pad value for each combination of RNAiClass objects (genes)
+            p = _row_i[j]  # original: rna_list[i].getPAD(rna_list[j])  # gets the pad value for each combination of RNAiClass objects (genes)
             if not np.isnan(p) and not np.isinf(p):  # checks if not nan or infinity
                 pad.append(p)  # appends PAD values
     print(np.array(pad))
@@ -127,10 +130,12 @@ def get_all_dist2EO(rna_list):
     OUTPUT: numpy array of dist values for all gene pairs
     '''
     dist = []
+    from ._fast import PairwiseRows  # PORT (perf #4)
+    _rows = PairwiseRows(rna_list)  # PORT (perf #4)
     for i in range(len(rna_list)):
+        _row_i = _rows.row(i)[0]  # PORT (perf #4): == [rna_list[i].getDistance(r) for r in rna_list], bit-identical
         for j in range(len(rna_list)):
-            p = rna_list[i].getDistance(
-                rna_list[j])  # gets the dist value for each combination of RNAiClass objects (genes)
+            p = _row_i[j]  # original: rna_list[i].getDistance(rna_list[j])  # gets the dist value for each combination of RNAiClass objects (genes)
             if not np.isnan(p) and not np.isinf(p):  # checks if not nan or infinity
                 dist.append(p)  # appends dist values
     # print np.array(pad)

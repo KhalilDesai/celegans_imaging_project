@@ -222,3 +222,30 @@ def test_umap_structure(full_run, ps):
     overlap = np.mean([len(set(a) & set(b)) / 15. for a, b in zip(_knn(g), _knn(p))])
     assert overlap >= 0.75, overlap
     assert trustworthiness(X, p, n_neighbors=15) >= 0.96
+
+
+@pytest.mark.parametrize('ps', ['opt', 'ms'])
+def test_fast_rows_equal_original_methods(fast_run, ps):
+    """PERFORMANCE #4: _fast.PairwiseRows must equal getDistance/getPAD/getOverlapDims bit for bit, incl. types."""
+    code = r'''
+import json, sys, numpy as np
+from embd.RNAiClass import RNAiClass
+from embd._fast import PairwiseRows
+R = []
+for i in range(1, 504):
+    r = RNAiClass(i, verb=False); r.setNDPosition(); R.append(r)
+rows = PairwiseRows(R)
+bad = 0
+for i in json.loads(sys.argv[1]):
+    d, p, o = rows.row(i - 1)
+    for j in range(len(R)):
+        d0, p0, o0 = R[i - 1].getDistance(R[j]), R[i - 1].getPAD(R[j]), R[i - 1].getOverlapDims(R[j])
+        same = (type(d0) is type(d[j]) and type(p0) is type(p[j]) and o0 == o[j]
+                and np.float64(d0).tobytes() == np.float64(d[j]).tobytes()
+                and np.float64(p0).tobytes() == np.float64(p[j]).tobytes())
+        bad += not same
+print(bad)
+'''
+    out = subprocess.check_output([sys.executable, '-c', code, json.dumps(SAMPLE_SEEDS)], env=_env(fast_run, ps),
+                                  stderr=subprocess.DEVNULL).decode().split()[-1]
+    assert out == '0'

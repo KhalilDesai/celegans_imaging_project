@@ -81,7 +81,12 @@ SPEC = {
     ],
     'src/embd/phenoDistCalc.py': [
         (PDC, 'getPADS', []),
-        (PDC, 'calc_pairwise_metrics', []),
+        (PDC, 'calc_pairwise_metrics', [
+            ("    pool = mp.Pool(processes=6)\n    distAll = pool.map(getPADS, zip(repeat(RNAi), range(len(RNAi))))\n    pool.close()\n    pool.join()\n",
+             "    # PORT (perf, PERFORMANCE #4): row-vectorised and bit-identical to the original\n"
+             "    #   pool = mp.Pool(processes=6); distAll = pool.map(getPADS, zip(repeat(RNAi), range(len(RNAi))))\n"
+             "    # (the pool pickled all 503 RNAiClass objects for every task; getPADS is kept as the reference).\n"
+             "    from ._fast import getPADS_all\n    distAll = getPADS_all(RNAi)\n")]),
         (PDC, 'optimizePAD', [
             ("def optimizePAD(rGroups, c):\n",
              "def optimizePAD(rGroups, c):\n"

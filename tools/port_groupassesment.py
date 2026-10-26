@@ -11,6 +11,16 @@ KEEP = ['getDist2WT', 'getDist2EO', 'getDist2AVG', 'getAvgVector', 'getPAD2EO', 
         'find_closest_groups', 'get_closest_group_description', 'get_group_description',
         'get_all_closest_groups', 'make_UMAP_content_files']
 EDITS = [
+    # PORT (perf, PERFORMANCE #4): all-pairs PAD / distance rows computed by _fast.PairwiseRows, which is
+    # bit-identical to the per-pair RNAiClass.getPAD / getDistance calls it replaces.
+    ("    pad = []\n    for i in range(len(rna_list)):\n        for j in range(len(rna_list)):\n            p = rna_list[i].getPAD(rna_list[j])",
+     "    pad = []\n    from ._fast import PairwiseRows  # PORT (perf #4)\n    _rows = PairwiseRows(rna_list)  # PORT (perf #4)\n"
+     "    for i in range(len(rna_list)):\n        _row_i = _rows.row(i)[1]  # PORT (perf #4): == [rna_list[i].getPAD(r) for r in rna_list], bit-identical\n"
+     "        for j in range(len(rna_list)):\n            p = _row_i[j]  # original: rna_list[i].getPAD(rna_list[j])"),
+    ("    dist = []\n    for i in range(len(rna_list)):\n        for j in range(len(rna_list)):\n            p = rna_list[i].getDistance(\n                rna_list[j])",
+     "    dist = []\n    from ._fast import PairwiseRows  # PORT (perf #4)\n    _rows = PairwiseRows(rna_list)  # PORT (perf #4)\n"
+     "    for i in range(len(rna_list)):\n        _row_i = _rows.row(i)[0]  # PORT (perf #4): == [rna_list[i].getDistance(r) for r in rna_list], bit-identical\n"
+     "        for j in range(len(rna_list)):\n            p = _row_i[j]  # original: rna_list[i].getDistance(rna_list[j])"),
     ("    print np.array(pad)\n", "    print(np.array(pad))\n"),
     ("        if pad > 0:\n            print pad\n", "        if pad > 0:\n            print(pad)\n"),
     ("group [0] is not 'dev delay'", "group [0] != 'dev delay'"),
