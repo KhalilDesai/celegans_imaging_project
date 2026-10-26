@@ -1,0 +1,37 @@
+# Build the images, run the full pipeline in the runtime image, then every test (fast + slow, i.e. every
+# output against tests/golden) in the test image. ~10 min on a GitHub-hosted runner.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  docker:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build runtime and test images
+        run: make docker-build
+
+      - name: Reproduce every output (runtime image, memory capped)
+        run: make docker-reproduce OUT=out
+
+      - name: Fast and slow tests against the outputs (test image)
+        run: make docker-test OUT=out
+
+      - name: Upload outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-outputs
+          path: |
+            out/*.csv
+            out/*.npy
+            out/*.svg
+            out/timings_port.jsonl
+          if-no-files-found: warn

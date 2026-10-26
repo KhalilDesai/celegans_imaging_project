@@ -30,6 +30,15 @@ maintainer approval (rule: a library upgrade that changes numerical output must 
   that last digit). The full-precision PAD/distance matrices (`pad_matrix_*.npy`) are compared with
   `rtol = 1e-13` (≈ 450 ulp head-room over the observed 1-ulp differences in distances; PAD is a ratio
   of distances, so error stays at this order).
+- **Platform (found 2026-10-26, Phase 4; OPEN for `pad_rank`):** the same cause separates a native macOS run
+  (numpy on Apple Accelerate) from the Docker image (linux/arm64, numpy's bundled OpenBLAS). Native vs. container:
+  PAD/distance matrices differ by ≤ 1.4e-14 absolute (rel ≤ 1.1e-14); phenoDist CSVs: 22 printed cells, each
+  1 unit in the 12th significant digit; every ranking, best-match list, hits matrix, description and reciprocal
+  match identical; UMAP coordinates differ (seeded UMAP amplifies last-bit input changes, see N3). All slow tests
+  pass on the container's outputs except `test_pad_rank`: gene 362 `pad37` is 0.427930321896 in the container vs
+  0.427930321895 (golden and native). `pad_rank` stores the phenoDist PAD text, so this is the N1 12th-digit
+  flip carried over; the test allows only 1 ulp raw. Proposed: apply the approved N1 rule (≤ 2 units in the 12th
+  significant digit) to `pad_rank`'s PAD columns; ranks stay exact. Awaiting maintainer approval.
 - **Alternative (not recommended):** reimplement OpenBLAS-x86 `ddot` summation order in Python
   so that the 12-digit text is byte-identical. Fragile (kernel- and CPU-dependent), slow, and
   it buys nothing scientifically.

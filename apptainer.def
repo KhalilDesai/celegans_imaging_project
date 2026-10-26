@@ -1,0 +1,43 @@
+# EMBD downstream analysis (Python 3 port): Apptainer/Singularity image for HPC clusters without Docker.
+# Same base image (pinned by digest), same locked dependencies (uv.lock) and environment as the Dockerfile.
+#
+#   apptainer build embd.sif apptainer.def            # or: make apptainer
+#   apptainer run --bind "$PWD/data":/data:ro --bind "$PWD/out":/out embd.sif
+#   apptainer exec embd.sif python -m embd.pipeline --help
+#
+# Alternatively, convert the Docker image: apptainer build embd.sif docker-daemon://embd:latest
+
+Bootstrap: docker
+From: python:3.12.12-slim-bookworm@sha256:593bd06efe90efa80dc4eee3948be7c0fde4134606dd40d8dd8dbcade98e669c
+
+%files
+    pyproject.toml /app/pyproject.toml
+    uv.lock /app/uv.lock
+    src /app/src
+
+%environment
+    export PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+    export PATH=/opt/venv/bin:$PATH PYTHONPATH=/app/src MPLBACKEND=Agg
+    # Determinism: single-threaded BLAS / numba (see docs/RANDOMNESS.md).
+    export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMBA_NUM_THREADS=1
+    export NUMBA_CACHE_DIR=/tmp/numba_cache MPLCONFIGDIR=/tmp/mpl
+
+%post
+    # Same uv version as the Dockerfile; it is only used to install uv.lock and is then removed.
+    pip install --no-cache-dir uv==0.9.27
+    cd /app
+    UV_PROJECT_ENVIRONMENT=/opt/venv UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1 \
+        uv sync --frozen --no-install-project --no-dev
+    pip uninstall -y uv
+    mkdir -p /data /out
+
+%runscript
+    if [ "$#" -eq 0 ]; then
+        exec python -m embd.pipeline reproduce --sheet /data/All_genes_mySQL_table.xlsx \
+            --index /data/Index_EMBD_ID_Gene_names.xlsx --out /out
+    fi
+    exec python -m embd.pipeline "$@"
+
+%labels
+    org.opencontainers.image.title EMBD downstream analysis (Python 3 port)
+    org.opencontainers.image.source https://github.com/KhalilDesai/celegans_imaging_project
