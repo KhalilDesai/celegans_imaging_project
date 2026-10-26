@@ -14,8 +14,13 @@ pin down the remaining differences. Internal references (A6, X2, …) point to o
   keep the differences documented.
 - **Q2 (precision):** not a problem. Values are used as published.
 - **Q3 (which 500):** EMBD 1–500 are the 500 genes of the first-pass paper (about 1,900 in the full set).
-  Follow-up for the lab: the code and published outputs also include EMBD 501–503 (mex-6, lin-66,
-  cuti-1), including in two manual groups. Were these intended to be part of the analysis?
+  Follow-up: the code and published outputs use EMBD 1–503, and three genes appear twice in that range:
+  elt-1 (EMBD 16 and 34), vab-1 (27 and 73) and apx-1 (31 and 315). Each pair has different imaging dates and
+  dsRNA concentrations, so 503 conditions = 500 unique genes. Is that the intended reading of "500 genes"?
+  The two elt-1 conditions are each other's closest match, but the vab-1 and apx-1 pairs look quite
+  different from each other (PAD 0.28 and 0.17). Was one of each pair a weaker knockdown, or a known issue?
+  Also, EMBD 1905 is named spt-16 like EMBD 364 but lists a different sequence ID (F55A3.3 vs F55A3.7).
+  Is that a naming slip?
 
 ## Data snapshot
 
