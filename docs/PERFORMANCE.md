@@ -38,3 +38,11 @@ The Phase-2 gains came from output-neutral caching (DECISIONS P2-4) and native e
 | 2 | CSI: same counts computed with array operations per seed (distance matrix reordered by the seed's ranking, strict lower-triangle row sums), instead of a name scan over all genes plus list membership per pair; original kept as `getCSI_original`/`getCSIS` | **byte-identical** (phenoDist CSV); equality also tested on synthetic data full of ties/inf | phenoDist opt 38.0 s | phenoDist opt **8.8 s** |
 | 3 | Best matches: `PADFilter` row index keyed on the shared row objects (the original's per-iteration `[3:]` re-slice defeated the list-keyed cache); gene-name lookups read `gene_key.csv` once per file version | **byte-identical** (`all_best_matches`, `hits_matrix_v2`) | combined 107 s; one-csv 94 s | combined **14.0 s**; one-csv **10.2 s** |
 | 4 | All-pairs distance/PAD/overlap computed one row at a time with array operations (`_fast.PairwiseRows`); the norm keeps the per-pair BLAS `sqrt(x.dot(x))` that `np.linalg.norm` uses, so results are bit-identical. phenoDist no longer pickles all 503 objects into a 6-process pool per task. Also used by the UMAP matrices step. | **byte-identical** (all four phenoDist CSVs; PAD/Dist matrices); test compares against the original methods incl. return types | phenoDist opt 8.8 s (gls/ms/all similar); matrices opt 8.2 s | phenoDist **4.1 / 4.8 / 4.5 / 5.0 s**; matrices opt **4.9 s** |
+
+## Result
+
+Full pipeline (`python -m embd.pipeline all`, all four parameter sets, every output): **145 s** wall clock,
+down from ≈ 14 min after Phase 2 and ≈ 2–3 days for the legacy code. Every output file is **byte-identical**
+to the pre-Phase-3 port, and the full regression suite against the golden legacy outputs passes.
+Remaining time is spread out: UMAP ≈ 13 s per set (seeded, single-threaded), best matches 24 s,
+derived columns 13 s, plus ≈ 1–2 s of interpreter start-up per step.
