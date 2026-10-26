@@ -1,17 +1,21 @@
 """
 Port of development/makeUMAPs_V2.py (originally a module-level script run under Python 3.6).
 
-Same behaviour, wrapped in ``run()``: ``np.random.seed(71076)`` then ``umap.UMAP()`` with all
-defaults (no random_state; DECISIONS C2), the 503x503 PAD matrix rows as features, the
+Wrapped in ``run()``: ``np.random.seed(71076)`` then ``umap.UMAP()`` with the original defaults, the
+503x503 PAD matrix rows as features, the
 11 manual groups + query overlay, and the same labels/colours/offsets. The input matrix and output
 paths are parameters (the original hardcoded 'Z://PAD_Matrix_042122_optParams.npy' and an SVG
 name). Returns the embedding.
+
+Reproducibility (maintainer decision 2026-10-26, NUMERICAL_DIFFERENCES N3): by default UMAP is seeded
+with ``random_state=71076`` (umap-learn then runs single-threaded), so repeated runs give identical
+embeddings. ``random_state=None`` reproduces the original call (unseeded, parallel, not reproducible).
 """
 import numpy as np
 
 
 def run(data, query=1, common_name=None, svg_path=None, title='UMAP of PAD with optimal parameters',
-        seed=71076):
+        seed=71076, random_state=71076):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -39,7 +43,7 @@ def run(data, query=1, common_name=None, svg_path=None, title='UMAP of PAD with 
                    'Enclosure/Early Elong.  \n Dorsal Defect', 'Enclosure/Early Elong. \n Ventral Rupture',
                    'Variable \n Defects', 'Late Elongation \n Arrest', 'Dev. Delay', 'Wild-type-like', 'Query']
 
-    fit = umap.UMAP()
+    fit = umap.UMAP() if random_state is None else umap.UMAP(random_state=random_state)  # original: umap.UMAP()
     points = fit.fit_transform(data)
 
     if svg_path is not None:

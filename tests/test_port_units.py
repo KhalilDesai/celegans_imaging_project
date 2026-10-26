@@ -113,3 +113,15 @@ def test_padfilter_row_index_equals_original_np_where():
         pads = [p[6] for p in dRNA]
         orig = [(dRNA[i][1], dRNA[i][6], dRNA[i][4]) for i in np.argsort(pads)[::-1][1:4]]
         assert PADassist.PADFilter(name, data, 3) == orig
+
+
+def test_umap_seeded_is_deterministic():
+    """N3: with the default random_state the port's UMAP is bit-reproducible."""
+    pytest.importorskip('umap')
+    from embd import makeUMAPs_V2
+    rng = np.random.default_rng(1)
+    X = rng.random((120, 30))
+    # without svg_path, run() only computes the embedding (the 503-gene group overlay is for plotting)
+    e1 = makeUMAPs_V2.run(X, query=1)
+    e2 = makeUMAPs_V2.run(X, query=1)
+    assert np.array_equal(e1, e2)
