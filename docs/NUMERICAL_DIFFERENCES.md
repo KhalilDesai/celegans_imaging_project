@@ -21,7 +21,7 @@ maintainer approval (rule: a library upgrade that changes numerical output must 
   (opt 10 PAD; GLS 6 PAD + 4 `dist`; MS 14 PAD + 4 `dist`; all 4 PAD + 2 `dist`). **Every one is
   exactly 1 unit in the 12th significant digit.** `dist2WT`, `dims` and `CSI` are text-identical, row
   order is identical, and top-51 rankings are identical for 503/503 seeds in every set.
-- **Extension (PROVISIONAL, pending maintainer confirmation):** the approved rule is applied to the
+- **Extension (APPROVED 2026-10-26, maintainer):** the approved rule is applied to the
   `dist` column as well (same cause). Tests allow ≤ 2 units in the 12th significant digit for
   `dist` and `PAD`, and exact text for every other column.
 - **Original proposal (approved):** exact equality for row order, rankings and every non-PAD column; PAD
@@ -57,5 +57,7 @@ maintainer approval (rule: a library upgrade that changes numerical output must 
   0.016–0.054.
 - **Tolerance:** kNN-15 overlap with golden ≥ 0.75 and trustworthiness ≥ 0.96, i.e. inside the
   original code's own run-to-run variation (min 0.781 / 0.969), with a small margin.
-- **Open (Phase 4, needs approval):** a reproducible mode (`UMAP(random_state=71076)`, single-threaded)
-  would make the port deterministic but not equal to any 2022 embedding.
+- **Decision (APPROVED 2026-10-26, maintainer):** the port seeds UMAP (`random_state=71076`, which
+  umap-learn runs single-threaded), so repeated runs give identical embeddings. They are still not equal
+  to any 2022 embedding; the structural tolerance above still applies against the golden run. The
+  original unseeded call stays available as `makeUMAPs_V2.run(..., random_state=None)` ("faithful mode").
