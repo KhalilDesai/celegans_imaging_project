@@ -38,6 +38,7 @@ The Phase-2 gains came from output-neutral caching (DECISIONS P2-4) and native e
 | 2 | CSI: same counts computed with array operations per seed (distance matrix reordered by the seed's ranking, strict lower-triangle row sums), instead of a name scan over all genes plus list membership per pair; original kept as `getCSI_original`/`getCSIS` | **byte-identical** (phenoDist CSV); equality also tested on synthetic data full of ties/inf | phenoDist opt 38.0 s | phenoDist opt **8.8 s** |
 | 3 | Best matches: `PADFilter` row index keyed on the shared row objects (the original's per-iteration `[3:]` re-slice defeated the list-keyed cache); gene-name lookups read `gene_key.csv` once per file version | **byte-identical** (`all_best_matches`, `hits_matrix_v2`) | combined 107 s; one-csv 94 s | combined **14.0 s**; one-csv **10.2 s** |
 | 4 | All-pairs distance/PAD/overlap computed one row at a time with array operations (`_fast.PairwiseRows`); the norm keeps the per-pair BLAS `sqrt(x.dot(x))` that `np.linalg.norm` uses, so results are bit-identical. phenoDist no longer pickles all 503 objects into a 6-process pool per task. Also used by the UMAP matrices step. | **byte-identical** (all four phenoDist CSVs; PAD/Dist matrices); test compares against the original methods incl. return types | phenoDist opt 8.8 s (gls/ms/all similar); matrices opt 8.2 s | phenoDist **4.1 / 4.8 / 4.5 / 5.0 s**; matrices opt **4.9 s** |
+| 5 | Memory: the memoised `readCSV` of the four phenoDist files parses each distinct cell text once and reuses the object (labels, dist2WT and dims repeat on every row); rows stay lists with element-wise equal values | **byte-identical** (`all_best_matches`, `hits_matrix_v2`, `pad_rank`); the four files also compared cell by cell (type, value, sign, NaN object) against `myFunc.readCSV` | bestmatches peak RSS 657 MB, 32 s | bestmatches peak RSS **434 MB**, 27 s |
 
 ## Result
 
@@ -46,3 +47,27 @@ down from ≈ 14 min after Phase 2 and ≈ 2–3 days for the legacy code. Every
 to the pre-Phase-3 port, and the full regression suite against the golden legacy outputs passes.
 Remaining time is spread out: UMAP ≈ 13 s per set (seeded, single-threaded), best matches 24 s,
 derived columns 13 s, plus ≈ 1–2 s of interpreter start-up per step.
+
+## Memory (Phase 4)
+
+Measured on 2026-10-26 with `tools/mem_profile.sh` (each step in its own process under `/usr/bin/time -l`,
+same steps and order as `pipeline reproduce`). Machine: Apple-silicon Mac, 16 GB RAM, native (no Docker).
+Peak RSS per step, in MB:
+
+| Step | Before #5 | After #5 |
+|---|---|---|
+| init-db | 30 | 30 |
+| phenodist (opt / gls / ms / all) | 280 / 261 / 282 / 281 | unchanged |
+| **bestmatches** | **657** | **434** |
+| padrank | 208 | 174 |
+| derived | 204 | unchanged |
+| vectors (each set) | 180–194 | unchanged |
+| matrices (each set) | 205–243 | unchanged |
+| umap (each set) | 456–463 | unchanged |
+| `pytest -m slow` (compares a run with tests/golden) | 635 | — |
+
+Steps run one after another in separate processes, so the pipeline's peak is the largest step: **≈ 0.46 GB**
+after #5 (UMAP, mostly numba/LLVM), down from 0.66 GB. The 4 GB Docker VM that froze the 8 GB laptop was
+therefore not filled by the pipeline itself; a fixed-size VM on an 8 GB host leaves ≈ 4 GB for macOS and every
+other app, so the host swaps. Run the container with an explicit cap (`docker run --memory=3g`, ample headroom)
+and give Docker Desktop no more memory than the host can spare.

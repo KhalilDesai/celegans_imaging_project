@@ -183,6 +183,7 @@ checks need the PDF or the STAR Methods equations.
 | D1 | FACT | requirements.txt is a Windows dev-machine freeze (py2exe, pywin32, vboxapi, Django, PyQt4…). It pins `matplotlib==1.4.0rc2` (a release candidate) and omits `umap-learn`, `pyensembl`, and `lmfit`'s numba/asteval transitive pins. |
 | D2 | FACT | The `genes`-table pickles fallback (`RNAi_Data/EMBD####`) and `check_version=True` call git (`GitPython`) on the *analysis repo* to stamp versions. The faithful port keeps `check_version=False` (the default) and supplies a fixed version string from the data layer. |
 | D3 | FAITHFUL | `phenoDistCalc` uses `multiprocessing.Pool(6)` for PAD and CSI. Results are order-preserving (`pool.map`), so parallelism doesn't affect output. |
+| D4 | OUTPUT-NEUTRAL | Memory (PERFORMANCE #5, Phase 4): the memoised `PADassist.readCSV` reuses one parsed object per distinct cell text. Peak RSS of `bestmatches` 657 → 434 MB; outputs byte-identical. Measured peak of every step is ≤ 0.46 GB natively (`tools/mem_profile.sh`), so the earlier Docker freeze was most likely the fixed 4 GB VM on an 8 GB host (host swapping), not the pipeline. |
 
 ## Q. Open questions for the Oegema/Green lab
 

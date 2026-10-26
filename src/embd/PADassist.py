@@ -43,8 +43,36 @@ def readCSV(fileName, delimiter=' '):
     import os
     key = (fileName, delimiter, os.path.getmtime(fileName), os.path.getsize(fileName))
     if key not in _CSV_CACHE:
-        _CSV_CACHE[key] = _readCSV_uncached(fileName, delimiter)
+        _CSV_CACHE[key] = _readCSV_shared(fileName, delimiter)
     return _CSV_CACHE[key]
+
+
+def _readCSV_shared(fileName, delimiter=' '):
+    """myFunc.readCSV with each distinct cell text parsed once and the resulting object reused.
+
+    PORT (memory, PERFORMANCE #5): the four phenoDist files hold 253k rows each; the two labels, dist2WT
+    (constant per seed) and dims repeat heavily, and myFunc.readCSV makes a new object for every cell.
+    The same text always parses to the same value, so rows are equal element by element (same types,
+    same floats, the same np.nan object) to myFunc.readCSV's; callers only read them.
+    """
+    import csv
+
+    parsed = {}
+
+    def cell(val):
+        try:
+            return parsed[val]
+        except KeyError:
+            try:
+                if val != 'None' and val != 'nan' and val != 'NA': v = float(val)
+                else: v = np.nan
+            except:  # noqa: E722 (as myFunc.readCSV)
+                v = val
+            parsed[val] = v
+            return v
+
+    with open(fileName, 'r', newline='') as f:
+        return [[cell(val) for val in row] for row in csv.reader(f, delimiter=delimiter)]
 
 
 def _rows_for(data, rnaName):
