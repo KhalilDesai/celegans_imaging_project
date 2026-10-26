@@ -8,6 +8,15 @@ original code unmodified on the Zenodo `All_genes_mySQL_table.xlsx` reproduces
 optimal and Morphogenesis sets it matches 486/503 and 487/503 genes. A few questions would help us
 pin down the remaining differences. Internal references (A6, X2, …) point to our decisions log.
 
+## Answered by the maintainer (2026-10-26)
+
+- **Q1 (snapshot):** not important. We use the latest data (the 2023 Zenodo table) as the baseline and
+  keep the differences documented.
+- **Q2 (precision):** not a problem. Values are used as published.
+- **Q3 (which 500):** EMBD 1–500 are the 500 genes of the first-pass paper (about 1,900 in the full set).
+  Follow-up for the lab: the code and published outputs also include EMBD 501–503 (mex-6, lin-66,
+  cuti-1), including in two manual groups. Were these intended to be part of the analysis?
+
 ## Data snapshot
 
 1. **Which genes changed after the May 2022 runs?** The best-match lists differ only where EMBD 1
