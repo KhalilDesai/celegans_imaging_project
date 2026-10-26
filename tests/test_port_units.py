@@ -125,3 +125,22 @@ def test_umap_seeded_is_deterministic():
     e1 = makeUMAPs_V2.run(X, query=1)
     e2 = makeUMAPs_V2.run(X, query=1)
     assert np.array_equal(e1, e2)
+
+
+def test_csi_vectorized_equals_original():
+    """PERFORMANCE #2: the vectorised CSI must equal the original getCSIS/getNBelow bit for bit."""
+    from embd import phenoDistCalc as P
+    rng = np.random.default_rng(3)
+    n = 40
+    labels = ['EMBD%04d' % (k + 1) for k in range(n)]
+    D = rng.random((n, n)).round(2)  # rounding creates many ties, the hard case for <=
+    D[rng.random((n, n)) < 0.05] = np.inf
+    np.fill_diagonal(D, 0.)
+    distAll = []
+    for i in range(n):
+        rows = [(labels[i], labels[j], float(D[i, j]), 1.0, 5, 0.5) for j in range(n)]
+        rows.sort(key=lambda x: x[2])
+        distAll.append(rows[::-1])
+    fast = P.getCSI_vectorized(distAll)
+    slow = [P.getCSIS((distAll, i)) for i in range(n)]
+    assert fast == slow

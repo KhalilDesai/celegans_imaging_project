@@ -36,10 +36,56 @@ def getCSIS(input):
 
 
 def getCSI(distAll):
+    # PORT (perf, PERFORMANCE #2): computes exactly what the original below computed, with the
+    # O(n^3)-per-seed list scans replaced by array operations (tests/test_port_units.py checks equality).
+    return getCSI_vectorized(distAll)
+
+
+def getCSI_original(distAll):
     pool = mp.Pool(processes=6)
     csiListAll = pool.map(getCSIS, zip(repeat(distAll), range(len(distAll))))
     pool.close()
     pool.join()
+    return csiListAll
+
+
+def getCSI_vectorized(distAll):
+    """Same values as ``getCSI_original`` (getCSIS/getNBelow), bit for bit.
+
+    For seed i, distAll[i] lists every gene in descending distance. At position j (partner r2):
+      n1 = len(distAll[i]) - j
+      n2 = number of genes x in distAll[i][:j] (i.e. NOT in rcounted = distAll[i][j:]) whose distance from
+           r2, as stored in r2's own list, is <= dist(i, r2)
+    and CSI = 1 - 1.*(n1 + n2)/len(distAll), the original formula on Python ints, so floats are identical.
+    getNBelow finds r2's list by the first row whose first label equals r2; ``first`` mirrors that.
+    """
+    n = len(distAll)
+    first = {}
+    for k in range(n):
+        first.setdefault(distAll[k][0][0], k)
+    col = {}  # label -> column in D; every list holds each label once
+    for x, row in enumerate(distAll[0]):
+        col[row[1]] = x
+    D = np.full((n, len(col)), np.nan)
+    for k in range(n):
+        for (r1, r2, d, d20, nOv, pad) in distAll[k]:
+            D[k, col[r2]] = d
+    csiListAll = []
+    for i in range(n):
+        rows = distAll[i]
+        m = len(rows)
+        partners = [first.get(r[1], -1) for r in rows]           # list index of each partner gene
+        cols = np.array([col[r[1]] for r in rows])                # column of each label in list order
+        d_i = np.array([r[2] for r in rows], dtype=float)
+        sub = D[np.array(partners)][:, cols]                     # sub[j, x] = dist(partner_j, label_x)
+        below = np.tril(sub <= d_i[:, None], -1)                 # x < j  <=>  label_x not in rcounted
+        n2 = below.sum(axis=1)
+        csiRNAi = []
+        for j in range(m):
+            n1 = m - j
+            n2j = int(n2[j]) if partners[j] >= 0 else 0           # getNBelow returns 0 if r2 has no list
+            csiRNAi.append(1 - 1. * (n1 + n2j) / n)
+        csiListAll.append(csiRNAi)
     return csiListAll
 
 
