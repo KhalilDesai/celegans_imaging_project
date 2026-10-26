@@ -55,13 +55,18 @@ def _rows_for(data, rnaName):
     string array on every call (that conversion was ~230 MB per file in numpy 2 and caused an
     out-of-memory kill on an 8 GB machine).
     """
-    k = id(data)
+    # PORT (perf, PERFORMANCE #3): the original re-slices ``readCSV(...)[3:]`` on every iteration, which makes
+    # a new list object each time. Key on the (shared) row objects instead, and keep references to them so
+    # their ids cannot be reused.
+    if not data:
+        return np.array([], dtype=np.intp)
+    k = (id(data[0]), id(data[-1]), len(data))
     hit = _ARRAY_CACHE.get(k)
-    if hit is None or hit[0] is not data or hit[1] != len(data):
+    if hit is None or hit[0] is not data[0] or hit[1] is not data[-1]:
         index = {}
         for i, row in enumerate(data):
             index.setdefault(str(row[0]), []).append(i)
-        hit = (data, len(data), {lab: np.array(ix, dtype=np.intp) for lab, ix in index.items()})
+        hit = (data[0], data[-1], {lab: np.array(ix, dtype=np.intp) for lab, ix in index.items()})
         _ARRAY_CACHE[k] = hit
     return hit[2].get(rnaName, np.array([], dtype=np.intp))
 

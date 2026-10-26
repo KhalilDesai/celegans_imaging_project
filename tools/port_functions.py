@@ -162,7 +162,9 @@ SPEC = {
         (EMB, 'check_for_interaction', [("    print [s for s in interacting if test in s]",
                                          "    print([s for s in interacting if test in s])")]),
         (EMB, 'getEMBDNumber', [("    elif ind != [None]:",
-                                 "    elif ind.size == 1:  # PORT: py2 `ind != [None]` is truthy for a 1-element array, falsy if empty")]),
+                                 "    elif ind.size == 1:  # PORT: py2 `ind != [None]` is truthy for a 1-element array, falsy if empty"),
+                                ("    data = readCSV(FILENAME_GENE_NAMES, ',')[1:]\n    dataA = np.array(data)\n",
+                                 "    data, dataA = _gene_key_rows()  # PORT (perf): was readCSV(FILENAME_GENE_NAMES, ',')[1:] and np.array(data)\n")]),
     ],
     'src/embd/myMath.py': [
         (MTH, 'nan_helper', []),

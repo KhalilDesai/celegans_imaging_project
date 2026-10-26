@@ -15,6 +15,20 @@ from .varLookup import PARAM_NAMES
 
 embsT = []
 
+_GENE_KEY_CACHE = {}
+
+
+def _gene_key_rows():
+    """PORT (perf, PERFORMANCE #3): ``readCSV(FILENAME_GENE_NAMES, ',')[1:]`` and its np.array, read once per
+    file version instead of on every name lookup. Callers only read them."""
+    import os
+    key = (FILENAME_GENE_NAMES, os.path.getmtime(FILENAME_GENE_NAMES), os.path.getsize(FILENAME_GENE_NAMES))
+    if key not in _GENE_KEY_CACHE:
+        _GENE_KEY_CACHE.clear()
+        data = readCSV(FILENAME_GENE_NAMES, ',')[1:]
+        _GENE_KEY_CACHE[key] = (data, np.array(data))
+    return _GENE_KEY_CACHE[key]
+
 
 def getNDDistance(v1, v2, pNamesUse):
     ''' calculates distance between two vectors in N dimensional space. The vector component that are nan treated as dimensionality reduced '''
@@ -90,8 +104,7 @@ def check_for_interaction(test_string, embdN):
 def getGeneName(embdN):
     if isinstance(embdN, str): embdN = int(embdN[-4:])
     if embdN == 0: return 'control'
-    data = readCSV(FILENAME_GENE_NAMES, ',')[1:]
-    dataA = np.array(data)
+    data, dataA = _gene_key_rows()  # PORT (perf): was readCSV(FILENAME_GENE_NAMES, ',')[1:] and np.array(data)
     ind = np.where(dataA == 'EMB_P{n:04}'.format(n=embdN))[0]
     return data[ind[0]][1]
 
@@ -99,8 +112,7 @@ def getGeneName(embdN):
 def getGeneCommonName(embdN):
     if isinstance(embdN, str): embdN = int(embdN[-4:])
     if embdN == 0: return 'control'
-    data = readCSV(FILENAME_GENE_NAMES, ',')[1:]
-    dataA = np.array(data)
+    data, dataA = _gene_key_rows()  # PORT (perf): was readCSV(FILENAME_GENE_NAMES, ',')[1:] and np.array(data)
     ind = np.where(dataA == 'EMB_P{n:04}'.format(n=embdN))[0]
     if ind.size > 0 and bool(data[ind[0]][2]):  # checks if anything is present in the cell
         return data[ind[0]][2]
@@ -110,8 +122,7 @@ def getGeneCommonName(embdN):
 
 def getEMBDNumber(geneName):
     if geneName == 'control': return 0
-    data = readCSV(FILENAME_GENE_NAMES, ',')[1:]
-    dataA = np.array(data)
+    data, dataA = _gene_key_rows()  # PORT (perf): was readCSV(FILENAME_GENE_NAMES, ',')[1:] and np.array(data)
     ind = np.where(dataA == geneName)[0]
     if ind.size > 1:
         #         print('gene duplicate: {g} {r1} & {r2}'.format(g=geneName, r1=data[ind[0]][0], r2=data[ind[1]][0]))
