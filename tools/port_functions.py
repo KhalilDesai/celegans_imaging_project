@@ -150,7 +150,8 @@ SPEC = {
     'src/embd/RNAiClass.py': [
         (RNA, 'save_params_data', []),
         (RNA, 'load_params_data', []),
-        (RNA, 'setNDPosition', []),
+        (RNA, 'setNDPosition', [("        self.NDFlag = True\n",
+                                  "        self.NDFlag = True\n        self._dist2zero = None  # PORT (perf, PERFORMANCE #1): invalidate cached getDist2Zero\n")]),
         (RNA, 'getOverlapDims', []),
         (RNA, 'getPAD', []),
         (RNA, 'get_cosine_dist', []),

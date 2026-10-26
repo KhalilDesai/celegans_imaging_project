@@ -34,4 +34,4 @@ The Phase-2 gains came from output-neutral caching (DECISIONS P2-4) and native e
 
 | # | Change | Output | Before | After |
 |---|---|---|---|---|
-| (filled in per commit) | | | | |
+| 1 | Cache each gene's distance to control (`getDist2Zero`), cleared by `setNDPosition`; `not vOverlap.any()` instead of builtin `sum()` over a numpy array | **byte-identical** (phenoDist CSV, PAD/Dist matrices) | phenoDist opt 70.8 s; matrices opt 45.8 s | phenoDist opt **38.0 s**; matrices opt **8.2 s** |

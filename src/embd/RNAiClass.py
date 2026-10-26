@@ -196,6 +196,7 @@ class RNAiClass(object):
                                                            pN + '_MS']  # calculates normalized value for each parameter and stores it in array posND
                     self.stdV[i + len(PARAM_NAMES)] = self.controlStd[pN + '_MS'] / self.paramNorms[pN + '_MS']
         self.NDFlag = True
+        self._dist2zero = None  # PORT (perf, PERFORMANCE #1): invalidate cached getDist2Zero
 
     #         self.posND[self.stdV>0.5]=0
 
@@ -220,7 +221,11 @@ class RNAiClass(object):
     def getDist2Zero(self):
         if not self.NDFlag:
             self.setNDPosition()
-        return getNDDistance(self.posND, 'control', self.pNamesUse)
+        # PORT (perf, PERFORMANCE #1): the distance to control depends only on posND and pNamesUse, which change
+        # only in setNDPosition (which clears this cache). The original recomputed it ~3x per pair.
+        if getattr(self, '_dist2zero', None) is None:
+            self._dist2zero = getNDDistance(self.posND, 'control', self.pNamesUse)
+        return self._dist2zero
 
     def getDistance(self, RNAi):
         if not self.NDFlag:

@@ -32,7 +32,7 @@ def getNDDistance(v1, v2, pNamesUse):
     N = len(pNamesUse[0]) + len(pNamesUse[1])
     vOverlap = np.invert(np.isnan(
         v1 * v2))  # overlapping vector, checks whether a parameter (coordinate) is not nan for each considered group (RNAi)
-    if sum(vOverlap) == 0:
+    if not vOverlap.any():  # PORT (perf, PERFORMANCE #1): was `sum(vOverlap) == 0` (builtin sum over a numpy array)
         return np.inf  # if there are no overlapping coordinates, returns infinity
     i1 = np.sum(np.invert(np.isnan(v1))) - np.sum(
         vOverlap)  # sums all coordinates that are not equal to nan for v1 and subtracts overlap
