@@ -31,6 +31,9 @@ Scientific correctness comes first: the port must reproduce the original code's 
   NUMERICAL_DIFFERENCES N1 "Platform"); rankings identical. For byte-identical outputs, use the image.
 - Not yet run: the Apptainer build (no Apptainer on the dev machines) and the CI workflow (runs on push; GitHub
   runners are amd64, so outputs may again differ in the last bits from arm64, within N1).
+- Walk-through: `notebooks/walkthrough.ipynb` follows EMBD0087 (*apr-1*) through every step with live
+  numbers and checks against `tests/golden/` (~45 s, < 1 GB). Re-run: `cd notebooks && uv run --with nbconvert
+  --with ipykernel jupyter nbconvert --to notebook --execute --inplace walkthrough.ipynb`.
 - **README: on hold.** The maintainer wants a guided walk-through of the code first.
 
 ## Working agreements with the maintainer
