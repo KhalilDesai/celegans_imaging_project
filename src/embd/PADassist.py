@@ -128,22 +128,34 @@ def getCSIFromFile(rn1, rn2, data):
     return val
 
 
+#     for d in data:
+#         if d[0]=='EMBD{n:04}'.format(n=rn1) and d[1]=='EMBD{n:04}'.format(n=rn2): return d[6]
+#         elif d[0]=='EMBD{n:04}'.format(n=rn2) and d[1]=='EMBD{n:04}'.format(n=rn1): return d[6]
+#     return np.nan
+
+
 def makeNetwork(edgeData):
     '''loads genes as nodes and PAD values as edges using networkx'''
-    import networkx as nx
-    G = nx.Graph()
+    import networkx as nx  # PORT: was a module-level import
+    G = nx.Graph()  # creates empty graph with no nodes or edges, can assign graph attributes i.e. G = nx.Graph(day="Friday")
     for i in range(1, 504):
         G.add_node(i)
+    #     G.add_nodes_from([range(1,504)], color = 'blue') #add a list of nodes
     th = 0.74
+    #     th2= 0.7
     edgeData = np.array(edgeData)
     inds = np.where(edgeData[:, 6].astype(float) > th)
+    #     inds = getSubIndex(edgeData[:,6].astype(float), th2, th)
     edgeData = edgeData[inds]
     for row in edgeData:
         n1 = int(row[0][-4:])  # node1
         n2 = int(row[1][-4:])  # node2
         weight = float(row[6])  # PAD
+        #         weight = float(row[5])#CSI
         if n1 != n2:
             G.add_edge(n1, n2, weight=weight)  # adds edges
+        #     for i in range(1,3):
+        #         print G[i]
     return G  # graph of all genes with PAD as edge value
 
 
@@ -152,7 +164,8 @@ def getPairsParams(seed, data):
 
     rnaSeed = RNAiClass(seed)
     rnaSeed.setNDPosition()
-    pairList = PADFilter('EMBD{r:04}'.format(r=seed), data, 10)
+    pairList = PADFilter('EMBD{r:04}'.format(r=seed),
+                         data, 10)  # returns a list of top hits by PAD values- each as gene, PAD, dimensions
     rList = [RNAiClass(int(p[0][5:])) for p in pairList]
     print('Pairs for EMBD{r:04}'.format(r=seed))
     i = 0
@@ -163,23 +176,30 @@ def getPairsParams(seed, data):
 
 
 def getCommonPairs(seedList, data):
-    allPairList = []
-    allPADvals = []
+    allPairList = []  # list of EMBD numbers that are paired with seed
+    allPADvals = []  # list of PAD values that from genes paired with seed
     for seed in seedList:
-        topGenes = PADFilter('EMBD{r:04}'.format(r=seed), data, 10)
+        topGenes = PADFilter('EMBD{r:04}'.format(r=seed),
+                             data, 10)  # returns list of lists- each list has gene, PAD and number of dimensions
         topGenes = np.array(topGenes)
-        allPairList.append(topGenes[:, 0])
-        allPADvals.append(topGenes[:, 1])
-    uniqueList, countList = np.unique(allPairList, return_counts=True)
+        allPairList.append(topGenes[:, 0])  # appends genes
+        allPADvals.append(topGenes[:, 1])  # appends PAD vals
+    uniqueList, countList = np.unique(allPairList,
+                                      return_counts=True)  # returns two lists- first list is all unique genes, second list is count for how many times genes are in list
     allPairList = np.array(allPairList)
     allPADvals = np.array(allPADvals)
-    uniquePADvals = []
+    uniquePADvals = []  # list of PAD values for list of genes (reduced to unique list)
     for gene in uniqueList:
-        uniquePADvals.append(np.mean(allPADvals[np.where(allPairList == gene)].astype(float)))
-    index = np.lexsort((uniquePADvals, countList))
-    for i in index[::-1]:
+        uniquePADvals.append(np.mean(allPADvals[np.where(allPairList == gene)].astype(
+            float)))  # finds the TRUE indicies where gene is in allPairList, retrieves the PAD values from those indices. If there are more than one pad value, appends the average
+    index = np.lexsort((uniquePADvals,
+                        countList))  # returns a list of indices corresponded to sorting by countList, then by uniquePADvals
+    for i in index[::-1]:  # [::-1] slices through the list in reverse order
         print(uniqueList[i], countList[i], uniquePADvals[i])
     return [int(uniqueList[i][-4:]) for i in index[::-1]]
+
+
+#     np.argsort(uniqueList[:,1])
 
 
 def get_best_match(RNAi, data):
@@ -187,28 +207,41 @@ def get_best_match(RNAi, data):
     Finds top matches using PAD (orCSI) by calling a CSV file, returns a list of ints [12,33,126] representing the genes with the closest phenotypes'''
 
     seed = RNAi[-4:]
-    seedObj = RNAiClass(int(seed))  # noqa: F841 (original)
-    top_hits = [seed]
-    top_hit_data = np.array(PADFilter(RNAi, data, 5))[:, 0]
-    top_hit_vals = np.array(PADFilter(RNAi, data, 5))[:, 1]
+    seedObj = RNAiClass(int(seed))
+    top_hits = [
+        seed]  # top hits list is seeded with the RNAi of interest and is populated with top matches (slices the last four digits of string to remove the 'EMBD')
+    top_hit_data = np.array(PADFilter(RNAi, data, 5))[:, 0]  # retrieves the top matches i.e. 'EMBD0076'
+    top_hit_vals = np.array(PADFilter(RNAi, data, 5))[:, 1]  # retrieves the PAD values for top matches
+
+    ## top_hit_data = np.array(CSIFilter(RNAi, data))[:,0] #retrieves the top matches i.e. 'EMBD0076' based on CSI
+    ## top_hit_vals = np.array(CSIFilter(RNAi, data))[:,1] #retrieves the CSI values for top matches
+
     for top_hit in top_hit_data:
-        top_hits.append(top_hit[-4:])
+        top_hits.append(top_hit[-4:])  # slices the last four digits of string to remove the 'EMBD'
     print(top_hits, seed, top_hit_vals)
     return top_hits, seed, top_hit_vals
-
-
-# --- data access --------------------------------------------------------------------------
 def get_data():
     """
-    Retrieves all pairwise information for sets of genes (from csv; the mysql variant is kept below).
+    Retrieves all pairwise information for sets of genes. for each gene pair: (rnai1 label, rnai2 label, distance,
+    distance to wt, overlapping dimensions, csi and pad from either mysql or csv
+
+    :return: data: a list of lists. Each lists consists of rnai1 label, rnai2 label, distance,
+    distance to wt, overlapping dimensions, csi and pad
     """
+
+    '''get data from mysql'''
+    # return get_data_from_mysql()
+
+    # '''get data from csv'''
     return get_data_from_csv()
 
 
 def get_data_from_mysql():
     conn, cursor = initialize_db()
+    # PORT: the SQLite emulation has no CONCAT/LPAD; original: SELECT CONCAT('EMBD', LPAD(rnai1, 4, '0')), ...
     sql = "SELECT 'EMBD' || substr('0000' || rnai1, -4, 4), 'EMBD' || substr('0000' || rnai2, -4, 4), dist, " \
-          "dist2wt, dims, CSI, PAD FROM pair_lookup"  # original MySQL: CONCAT('EMBD', LPAD(rnai1, 4, '0')), ...
+          "dist2wt, dims, CSI, PAD FROM pair_lookup"  # LPAD Left PADs the INT rnai1 value with 'EMBD' and zeros, up to 4 digits
+
     cursor.execute(sql)
     dataset = list(cursor.fetchall())
     return dataset
@@ -222,27 +255,31 @@ def get_data_from_csv():
 def update_pad_rank(cursor, conn, data, embd_ids=range(1, 504)):
     """
     adds genes to the pad_rank database
+    :param cursor: mysqldb cursor
+    :data: data set containing gene pairs, PAD, distance, CSI values generated by get_data(), which
+    either populates data from csv or mysql
+    :return: None
     """
-    from .db_utils_embryos import insert_row, update_row
+    from .db_utils_embryos import update_row, insert_row
     table = 'pad_rank'
     columns = get_columns(cursor, table)  # retrieves columns from table as list
-    for i in embd_ids:
+    for i in embd_ids:  # PORT: the original range(1, 504) is the default
         print(i)
         top_hits = PADFilter(i, data, 51)
         count = 0
         colms = {}
         for col in columns[1:]:
-            colms[col] = 0  # add a default value to populate key value pair
+            colms[col] = 0 #add a default value to populate key value pair
         for hit in top_hits:
             rnai = i
             hit_name = int(hit[0][4:])
             pad = hit[1]
-            count += 1
+            count+=1
             rank_col = 'rank'+'{}'.format(count)
             pad_col = 'pad'+'{}'.format(count)
-            colms['rnai'] = rnai
-            colms[rank_col] = hit_name
-            colms[pad_col] = pad
+            colms['rnai']=rnai
+            colms[rank_col]=hit_name
+            colms[pad_col]=pad
 
         sql = "SELECT id FROM {t} WHERE rnai={r}".format(t=table, r=i)
         cursor.execute(sql)
@@ -253,105 +290,283 @@ def update_pad_rank(cursor, conn, data, embd_ids=range(1, 504)):
             insert_row(colms, cursor, table)
     conn.commit()
     conn.close()
-
-
-# --- best-match outputs -------------------------------------------------------------------
 PHENODIST_FILES = {'opt': 'phenoDist_rank_04142022.csv', 'gls': 'phenoDist_rank_GLS_ONLY05102022.csv',
                    'ms': 'phenoDist_rank_MS_ONLY05102022.csv', 'all': 'phenoDist_rank_ALL_PARAMS05102022.csv'}
 
 
-def _load_all_sets():
-    return (readCSV(FOLDER_IN + PHENODIST_FILES['opt'], ',')[3:],
-            readCSV(FOLDER_IN + PHENODIST_FILES['gls'], ',')[3:],
-            readCSV(FOLDER_IN + PHENODIST_FILES['ms'], ',')[3:],
-            readCSV(FOLDER_IN + PHENODIST_FILES['all'], ',')[3:])
-
-
 def output_all_best_matches_to_csv_combined(fileName=None, embd_ids=range(1, 504)):
+
     '''
     for all conditions, finds top matches using PAD, writes to a CSV file: shows top matches with alternate parameter sets'''
-    if fileName is None:
+    import time
+
+    if fileName is None:  # PORT: was 'Z:\\all_best_matches_<date>.csv'
         fileName = FOLDER_IN + 'all_best_matches_{d}.csv'.format(d=time.strftime('%m%d%Y'))
     fd = open(fileName, 'w', newline='')
-    for i in embd_ids:
+    for i in embd_ids:  # PORT: the original range(1,504) is the default
         RNAi = 'EMBD{r:04}'.format(r=i)
         seed = RNAi[-4:]
-        seedObj = RNAiClass(int(seed))  # noqa: F841 (original)
+        seedObj = RNAiClass(int(seed))
 
-        data_opt, data_GLS_params_only, data_MS_params_only, data_all_params = _load_all_sets()
+        data_opt = readCSV(FOLDER_IN + 'phenoDist_rank_04142022.csv', ',')[3:]
+        data_GLS_params_only = readCSV(FOLDER_IN + 'phenoDist_rank_GLS_ONLY05102022.csv', ',')[3:]
+        data_MS_params_only = readCSV(FOLDER_IN + 'phenoDist_rank_MS_ONLY05102022.csv', ',')[3:]
+        data_all_params = readCSV(FOLDER_IN + 'phenoDist_rank_ALL_PARAMS05102022.csv', ',')[3:]
 
-        top_hit_data_opt = np.array(PADFilter(RNAi, data_opt, 10))[:, 0]
-        top_hit_vals_opt = np.array(PADFilter(RNAi, data_opt, 10))[:, 1]
-        top_hit_data_GLS = np.array(PADFilter(RNAi, data_GLS_params_only, 10))[:, 0]
-        top_hit_vals_GLS = np.array(PADFilter(RNAi, data_GLS_params_only, 10))[:, 1]
-        top_hit_data_MS = np.array(PADFilter(RNAi, data_MS_params_only, 10))[:, 0]
-        top_hit_vals_MS = np.array(PADFilter(RNAi, data_MS_params_only, 10))[:, 1]
-        top_hit_data_all_params = np.array(PADFilter(RNAi, data_all_params, 10))[:, 0]
-        top_hit_vals_all_params = np.array(PADFilter(RNAi, data_all_params, 10))[:, 1]
+
+        # top_hits_opt = [seed]  # top hits list is seeded with the RNAi of interest and is populated with top matches (slices the last four digits of string to remove the 'EMBD')
+        top_hit_data_opt = np.array(PADFilter(RNAi, data_opt, 10))[:, 0]  # retrieves the top matches i.e. 'EMBD0076'
+        top_hit_vals_opt = np.array(PADFilter(RNAi, data_opt, 10))[:, 1]  # retrieves the PAD values for top matches
+
+        # top_hits_GLS = [seed]  # top hits list is seeded with the RNAi of interest and is populated with top matches (slices the last four digits of string to remove the 'EMBD')
+        top_hit_data_GLS = np.array(PADFilter(RNAi, data_GLS_params_only, 10))[:, 0]  # retrieves the top matches i.e. 'EMBD0076'
+        top_hit_vals_GLS = np.array(PADFilter(RNAi, data_GLS_params_only, 10))[:, 1]  # retrieves the PAD values for top matches
+
+        # top_hits_MS = [seed]  # top hits list is seeded with the RNAi of interest and is populated with top matches (slices the last four digits of string to remove the 'EMBD')
+        top_hit_data_MS = np.array(PADFilter(RNAi, data_MS_params_only, 10))[:, 0]  # retrieves the top matches i.e. 'EMBD0076'
+        top_hit_vals_MS = np.array(PADFilter(RNAi, data_MS_params_only, 10))[:, 1]  # retrieves the PAD values for top matches
+
+        # top_hits_all_params = [seed]  # top hits list is seeded with the RNAi of interest and is populated with top matches (slices the last four digits of string to remove the 'EMBD')
+        top_hit_data_all_params = np.array(PADFilter(RNAi, data_all_params, 10))[:, 0]  # retrieves the top matches i.e. 'EMBD0076'
+        top_hit_vals_all_params = np.array(PADFilter(RNAi, data_all_params, 10))[:, 1]  # retrieves the PAD values for top matches
         fd.write('rank, query EMBD_ID, query genename, hit EMBD_ID - optimal parameters, hit genename - optimal parameters, hit PAD value - optimal parameters, hit EMBD_ID - GLS parameters, hit genename - GLS parameters, hit PAD value - GLS parameters, hit EMBD_ID - MS parameters, hit genename - MS parameters, hit PAD value - MS parameters+ \n')
         all_hits_matrix = [['rank', 'query EMBD_ID', 'query genename', 'hit EMBD_ID - optimal parameters', 'hit genename - optimal parameters', 'hit PAD value - optimal parameters', 'hit EMBD_ID - GLS parameters', 'hit genename - GLS parameters', 'hit PAD value - GLS parameters', 'hit EMBD_ID - MS parameters', 'hit genename - MS parameters', 'hit PAD value - MS parameters', 'hit EMBD_ID - all parameters', 'hit genename - all parameters', 'hit PAD value - all parameters']]
-        for i in range(len(top_hit_data_opt)):  # noqa: B020 (shadows the outer i, as in the original)
+        for i in range(len(top_hit_data_opt)):
             rank = i + 1
             query = seed
             query_name = getGeneCommonName(seed)
-            opt_hit = top_hit_data_opt[i][-4:]
+            opt_hit =top_hit_data_opt[i][-4:]
             opt_hit_name = getGeneCommonName(opt_hit)
             opt_hit_val = top_hit_vals_opt[i]
-            GLS_hit = top_hit_data_GLS[i][-4:]
+            GLS_hit =top_hit_data_GLS[i][-4:]
             GLS_hit_name = getGeneCommonName(GLS_hit)
             GLS_hit_val = top_hit_vals_GLS[i]
-            MS_hit = top_hit_data_MS[i][-4:]
+            MS_hit =top_hit_data_MS[i][-4:]
             MS_hit_name = getGeneCommonName(MS_hit)
             MS_hit_val = top_hit_vals_MS[i]
-            all_hit = top_hit_data_all_params[i][-4:]
+            all_hit =top_hit_data_all_params[i][-4:]
             all_hit_name = getGeneCommonName(all_hit)
             all_hit_val = top_hit_vals_all_params[i]
-            all_hits_matrix.append([rank, query, query_name, opt_hit, opt_hit_name, opt_hit_val, GLS_hit, GLS_hit_name, GLS_hit_val, MS_hit, MS_hit_name, MS_hit_val, all_hit, all_hit_name, all_hit_val])
+            all_hits_matrix.append([rank, query, query_name, opt_hit, opt_hit_name,opt_hit_val, GLS_hit, GLS_hit_name,GLS_hit_val, MS_hit, MS_hit_name,MS_hit_val, all_hit, all_hit_name,all_hit_val])
             fd.write('{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11}\n'.format(rank, query, query_name, opt_hit, opt_hit_name, opt_hit_val, GLS_hit, GLS_hit_name, GLS_hit_val, MS_hit, MS_hit_name, MS_hit_val))
-            if i == 9:
+            if i==9:
                 fd.write('\n')
+
+            # all_hits_matrix.append(top_hit_data_opt[i][-4:])  # slices the last four digits of string to remove the 'EMBD'
+            # hit_name = getGeneCommonName(top_hit_opt[-4:])
+        # all_hits_matrix = np.array(all_hits_matrix)
+        # print(all_hits_matrix)
+
+
+        # import pandas as pd
+        # savepath = 'Z:/WebContent/{0}/{0}_hits_matrix.csv'.format(RNAi)
+        # pd.DataFrame(all_hits_matrix).to_csv(savepath)
     fd.close()
-    return fileName
+    return fileName  # PORT
+        # return(all_hits_matrix)
+        # print top_hits, seed, top_hit_vals
+        # return top_hits, seed, top_hit_vals
 
 
 def output_all_best_matches_to_one_csv_combined(fileName=None, embd_ids=range(1, 504)):
     '''
-    for all conditions, finds top matches using PAD, writes to one CSV file for all conditions: shows top matches and PAD (hit-1: 0.765) with alternate parameter sets'''
-    import pandas as pd
+    IN PROGRESS__for all conditions, finds top matches using PAD, writes to one CSV file for all conditions: shows top matches  and PAD (hit-1: 0.765) with alternate parameter sets'''
+    import time
+
+    # all_hits_matrix = [['query EMBD_ID', 'query genename', 'hit EMBD_ID - optimal parameters',
+    #                     'hit genename - optimal parameters', 'hit PAD value - optimal parameters',
+    #                     'hit EMBD_ID - GLS parameters', 'hit genename - GLS parameters',
+    #                     'hit PAD value - GLS parameters', 'hit EMBD_ID - MS parameters', 'hit genename - MS parameters',
+    #                     'hit PAD value - MS parameters', 'hit EMBD_ID - all parameters',
+    #                     'hit genename - all parameters', 'hit PAD value - all parameters']]
+
     all_hits_matrix = [['query EMBD_ID', 'query genename', 'hits - optimal parameters', 'hits - GLS only parameters', 'hits - MS only parameters',
                         'hits - all parameters']]
 
-    for i in embd_ids:
+    # fd = open('Z:\\Automated_analysis\\combined_best_matches_{d}.csv'.format(d=time.strftime('%m%d%Y')),
+    #           'w')
+    # fd.write(
+    #     'query EMBD_ID, query genename, hit EMBD_ID - optimal parameters, hit genename - optimal parameters, hit PAD value - optimal parameters, hit EMBD_ID - GLS parameters, hit genename - GLS parameters, hit PAD value - GLS parameters, hit EMBD_ID - MS parameters, hit genename - MS parameters, hit PAD value - MS parameters, hit EMBD_ID - All parameters, hit genename - All parameters, hit PAD value - All parameters+ \n')
+
+    for i in embd_ids:  # PORT: the original range(1,504) is the default
         RNAi = 'EMBD{r:04}'.format(r=i)
         print(RNAi)
         seed = RNAi[-4:]
-        seedObj = RNAiClass(int(seed))  # noqa: F841 (original)
+        seedObj = RNAiClass(int(seed))
         query = seed
         query_name = getGeneCommonName(seed)
 
-        data_opt, data_GLS_params_only, data_MS_params_only, data_all_params = _load_all_sets()
+        data_opt = readCSV(FOLDER_IN + 'phenoDist_rank_04142022.csv', ',')[3:]
+        data_GLS_params_only = readCSV(FOLDER_IN + 'phenoDist_rank_GLS_ONLY05102022.csv', ',')[3:]
+        data_MS_params_only = readCSV(FOLDER_IN + 'phenoDist_rank_MS_ONLY05102022.csv', ',')[3:]
+        data_all_params = readCSV(FOLDER_IN + 'phenoDist_rank_ALL_PARAMS05102022.csv', ',')[3:]
 
-        sets = []  # the original repeats this block four times verbatim; identical logic
-        for data in (data_opt, data_GLS_params_only, data_MS_params_only, data_all_params):
-            top_hit_data = np.array(PADFilter(RNAi, data, 10))[:, 0]
-            top_hit_data_gene_names = [getGeneCommonName(top_hit_data[j][-4:]) for j in range(len(top_hit_data))]
-            top_hit_vals = np.array(PADFilter(RNAi, data, 10))[:, 1]
-            top_hit_set = []
-            for k in range(10):
-                val = float(top_hit_vals[k])
-                if val > 0.50:
-                    val = py2_str(val)[0:5]  # py2 str(float); DECISIONS B6
-                    top_hit_set.append(top_hit_data_gene_names[k] + ': ' + val)
-            sets.append(top_hit_set)
 
-        all_hits_matrix.append([query, query_name] + sets)
+        # top_hits_opt = [seed]  # top hits list is seeded with the RNAi of interest and is populated with top matches (slices the last four digits of string to remove the 'EMBD')
+        top_hit_data_opt = np.array(PADFilter(RNAi, data_opt, 10))[:, 0]  # retrieves the top matches i.e. 'EMBD0076'
+        # top_hit_data_opt_gene_names = []
 
-    if fileName is None:
-        fileName = FOLDER_IN + 'hits_matrix_v2_{d}.csv'.format(d=time.strftime('%m%d%Y'))
-    pd.DataFrame(all_hits_matrix).to_csv(fileName)
-    return fileName
+        # for j in range(len(top_hit_data_opt)):
+        #     hit_name = getGeneCommonName(top_hit_data_opt[j][-4:])
+        #     top_hit_data_opt_gene_names.append(hit_name)
+
+        top_hit_data_opt_gene_names= [getGeneCommonName(top_hit_data_opt[j][-4:]) for j in range(len(top_hit_data_opt))]
+        top_hit_vals_opt = np.array(PADFilter(RNAi, data_opt, 10))[:, 1]  # retrieves the PAD values for top matches
+        top_hit_opt_set = []
+        for k in range(10):
+            val = float(top_hit_vals_opt[k])
+            if val>0.50:
+                val = py2_str(val)[0:5]  # PORT: py2 str(float) (B6)
+                top_hit_opt_set.append(top_hit_data_opt_gene_names[k]+': '+ val)
+
+        top_hit_data_GLS = np.array(PADFilter(RNAi, data_GLS_params_only, 10))[:, 0]  # retrieves the top matches i.e. 'EMBD0076'
+        top_hit_data_GLS_gene_names = [getGeneCommonName(top_hit_data_GLS[j][-4:]) for j in
+                                       range(len(top_hit_data_GLS))]
+        top_hit_vals_GLS = np.array(PADFilter(RNAi, data_GLS_params_only, 10))[:, 1]  # retrieves the PAD values for top matches
+        top_hit_GLS_set = []
+        for l in range(10):
+            val = float(top_hit_vals_GLS[l])
+            if val > 0.50:
+                val = py2_str(val)[0:5]  # PORT: py2 str(float) (B6)
+                top_hit_GLS_set.append(top_hit_data_GLS_gene_names[l] + ': ' + val)
+
+        top_hit_data_MS = np.array(PADFilter(RNAi, data_MS_params_only, 10))[:, 0]  # retrieves the top matches i.e. 'EMBD0076'
+        top_hit_data_MS_gene_names = [getGeneCommonName(top_hit_data_MS[j][-4:]) for j in
+                                       range(len(top_hit_data_MS))]
+        top_hit_vals_MS = np.array(PADFilter(RNAi, data_MS_params_only, 10))[:, 1]  # retrieves the PAD values for top matches
+        top_hit_MS_set = []
+        for m in range(10):
+            val = float(top_hit_vals_MS[m])
+            if val > 0.50:
+                val = py2_str(val)[0:5]  # PORT: py2 str(float) (B6)
+                top_hit_MS_set.append(top_hit_data_MS_gene_names[m] + ': ' + val)
+
+        top_hit_data_all_params = np.array(PADFilter(RNAi, data_all_params, 10))[:, 0]  # retrieves the top matches i.e. 'EMBD0076'
+        top_hit_data_all_gene_names = [getGeneCommonName(top_hit_data_all_params[j][-4:]) for j in
+                                       range(len(top_hit_data_all_params))]
+        top_hit_vals_all_params = np.array(PADFilter(RNAi, data_all_params, 10))[:, 1]  # retrieves the PAD values for top matches
+        top_hit_all_set = []
+        for n in range(10):
+            val = float(top_hit_vals_all_params[n])
+            if val > 0.50:
+                val = py2_str(val)[0:5]  # PORT: py2 str(float) (B6)
+                top_hit_all_set.append(top_hit_data_all_gene_names[n] + ': ' + val)
+
+        # fd.write(
+        #     '{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11}\n'.format(query, query_name, top_hit_data_opt.tolist(), top_hit_data_opt_gene_names,
+        #                                                                  top_hit_vals_opt.tolist(), top_hit_data_GLS.tolist(), top_hit_data_GLS_gene_names,
+        #                                                                  top_hit_vals_GLS.tolist(), top_hit_data_MS.tolist(), top_hit_data_MS_gene_names, top_hit_vals_MS.tolist(), top_hit_data_all_params.tolist(), top_hit_data_all_gene_names, top_hit_vals_all_params.tolist()))
+
+        # all_hits_matrix.append(
+        #     [query, query_name, top_hit_data_opt.tolist(),top_hit_data_opt_gene_names,top_hit_vals_opt.tolist(),top_hit_data_GLS.tolist(),top_hit_data_GLS_gene_names,top_hit_vals_GLS.tolist(),top_hit_data_MS.tolist(),top_hit_data_MS_gene_names, top_hit_vals_MS.tolist(),top_hit_data_all_params.tolist(),top_hit_data_all_gene_names,top_hit_vals_all_params.tolist()])
+
+        all_hits_matrix.append([query, query_name, top_hit_opt_set, top_hit_GLS_set, top_hit_MS_set,top_hit_all_set])
+
+    import pandas as pd
+    savepath = fileName if fileName is not None else \
+        FOLDER_IN + 'hits_matrix_v2_{d}.csv'.format(d=time.strftime('%m%d%Y'))  # PORT: was 'Z:/'
+    pd.DataFrame(all_hits_matrix).to_csv(savepath)
+    return savepath  # PORT
+
+
+
+        # all_hits_matrix = [['rank', 'query EMBD_ID', 'query genename', 'hit
+        # all_hits_matrix = [['rank', 'query EMBD_ID', 'query genename', 'hit EMBD_ID - optimal parameters', 'hit genename - optimal parameters', 'hit PAD value - optimal parameters', 'hit EMBD_ID - GLS parameters', 'hit genename - GLS parameters', 'hit PAD value - GLS parameters', 'hit EMBD_ID - MS parameters', 'hit genename - MS parameters', 'hit PAD value - MS parameters', 'hit EMBD_ID - all parameters', 'hit genename - all parameters', 'hit PAD value - all parameters']]
+        # for i in range(len(top_hit_data_opt)):
+        #     rank = i + 1
+        #     query = seed
+        #     query_name = getGeneCommonName(seed)
+        #     opt_hit =top_hit_data_opt[i][-4:]
+        #     opt_hit_name = getGeneCommonName(opt_hit)
+        #     opt_hit_val = top_hit_vals_opt[i]
+        #     GLS_hit =top_hit_data_GLS[i][-4:]
+        #     GLS_hit_name = getGeneCommonName(GLS_hit)
+        #     GLS_hit_val = top_hit_vals_GLS[i]
+        #     MS_hit =top_hit_data_MS[i][-4:]
+        #     MS_hit_name = getGeneCommonName(MS_hit)
+        #     MS_hit_val = top_hit_vals_MS[i]
+        #     all_hit =top_hit_data_all_params[i][-4:]
+        #     all_hit_name = getGeneCommonName(all_hit)
+        #     all_hit_val = top_hit_vals_all_params[i]
+        #     all_hits_matrix.append([rank, query, query_name, opt_hit, opt_hit_name,opt_hit_val, GLS_hit, GLS_hit_name,GLS_hit_val, MS_hit, MS_hit_name,MS_hit_val, all_hit, all_hit_name,all_hit_val])
+        #     fd.write('{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11}\n'.format(rank, query, query_name, opt_hit, opt_hit_name, opt_hit_val, GLS_hit, GLS_hit_name, GLS_hit_val, MS_hit, MS_hit_name, MS_hit_val))
+        #     if i==9:
+        #         fd.write('\n')
+
+            # all_hits_matrix.append(top_hit_data_opt[i][-4:])  # slices the last four digits of string to remove the 'EMBD'
+            # hit_name = getGeneCommonName(top_hit_opt[-4:])
+        # all_hits_matrix = np.array(all_hits_matrix)
+        # print(all_hits_matrix)
+
+
+        # import pandas as pd
+        # savepath = 'Z:/WebContent/{0}/{0}_hits_matrix.csv'.format(RNAi)
+        # pd.DataFrame(all_hits_matrix).to_csv(savepath)
+    # fd.close()
+        # return(all_hits_matrix)
+        # print top_hits, seed, top_hit_vals
+        # return top_hits, seed, top_hit_vals
 
 
 def output_best_matches_to_csv(RNAi):
-    raise NotImplementedError('PADassist.output_best_matches_to_csv: per-gene variant writing into the '
-                              'web-content tree; not on the published-output path, not ported')
+    '''input- RNAi object- i.e EMBD0076
+    Finds top matches using PAD (orCSI) by calling a CSV file, returns a list of ints [12,33,126] representing the genes with the closest phenotypes'''
+
+    seed = RNAi[-4:]
+    seedObj = RNAiClass(int(seed))
+
+    data_opt = readCSV(FOLDER_IN + 'phenoDist_rank_04142022.csv', ',')[3:]
+    data_GLS_params_only = readCSV(FOLDER_IN + 'phenoDist_rank_GLS_ONLY05102022.csv', ',')[3:]
+    data_MS_params_only = readCSV(FOLDER_IN + 'phenoDist_rank_MS_ONLY05102022.csv', ',')[3:]
+    data_all_params = readCSV(FOLDER_IN + 'phenoDist_rank_ALL_PARAMS05102022.csv', ',')[3:]
+
+
+    # top_hits_opt = [seed]  # top hits list is seeded with the RNAi of interest and is populated with top matches (slices the last four digits of string to remove the 'EMBD')
+    top_hit_data_opt = np.array(PADFilter(RNAi, data_opt, 10))[:, 0]  # retrieves the top matches i.e. 'EMBD0076'
+    top_hit_vals_opt = np.array(PADFilter(RNAi, data_opt, 10))[:, 1]  # retrieves the PAD values for top matches
+
+    # top_hits_GLS = [seed]  # top hits list is seeded with the RNAi of interest and is populated with top matches (slices the last four digits of string to remove the 'EMBD')
+    top_hit_data_GLS = np.array(PADFilter(RNAi, data_GLS_params_only, 10))[:, 0]  # retrieves the top matches i.e. 'EMBD0076'
+    top_hit_vals_GLS = np.array(PADFilter(RNAi, data_GLS_params_only, 10))[:, 1]  # retrieves the PAD values for top matches
+
+    # top_hits_MS = [seed]  # top hits list is seeded with the RNAi of interest and is populated with top matches (slices the last four digits of string to remove the 'EMBD')
+    top_hit_data_MS = np.array(PADFilter(RNAi, data_MS_params_only, 10))[:, 0]  # retrieves the top matches i.e. 'EMBD0076'
+    top_hit_vals_MS = np.array(PADFilter(RNAi, data_MS_params_only, 10))[:, 1]  # retrieves the PAD values for top matches
+
+    # top_hits_all_params = [seed]  # top hits list is seeded with the RNAi of interest and is populated with top matches (slices the last four digits of string to remove the 'EMBD')
+    top_hit_data_all_params = np.array(PADFilter(RNAi, data_all_params, 10))[:, 0]  # retrieves the top matches i.e. 'EMBD0076'
+    top_hit_vals_all_params = np.array(PADFilter(RNAi, data_all_params, 10))[:, 1]  # retrieves the PAD values for top matches
+
+    all_hits_matrix = [['rank', 'query unique_ID', 'query genename', 'hit unique_ID - optimal parameters', 'hit genename - optimal parameters', 'hit PAD value - optimal parameters', 'hit unique_ID - GLS parameters', 'hit genename - GLS parameters', 'hit PAD value - GLS parameters', 'hit unique_ID - MS parameters', 'hit genename - MS parameters', 'hit PAD value - MS parameters', 'hit unique_ID - all parameters', 'hit genename - all parameters', 'hit PAD value - all parameters']]
+    for i in range(len(top_hit_data_opt)):
+        rank = i + 1
+        query = seed
+        query_name = getGeneCommonName(seed)
+        opt_hit =top_hit_data_opt[i][-4:]
+        opt_hit_name = getGeneCommonName(opt_hit)
+        opt_hit_val = top_hit_vals_opt[i]
+        GLS_hit =top_hit_data_GLS[i][-4:]
+        GLS_hit_name = getGeneCommonName(GLS_hit)
+        GLS_hit_val = top_hit_vals_GLS[i]
+        MS_hit =top_hit_data_MS[i][-4:]
+        MS_hit_name = getGeneCommonName(MS_hit)
+        MS_hit_val = top_hit_vals_MS[i]
+        all_hit =top_hit_data_all_params[i][-4:]
+        all_hit_name = getGeneCommonName(all_hit)
+        all_hit_val = top_hit_vals_all_params[i]
+        all_hits_matrix.append([rank, query, query_name, opt_hit, opt_hit_name,opt_hit_val, GLS_hit, GLS_hit_name,GLS_hit_val, MS_hit, MS_hit_name,MS_hit_val, all_hit, all_hit_name,all_hit_val])
+
+
+
+        # all_hits_matrix.append(top_hit_data_opt[i][-4:])  # slices the last four digits of string to remove the 'EMBD'
+        # hit_name = getGeneCommonName(top_hit_opt[-4:])
+    all_hits_matrix = np.array(all_hits_matrix)
+    print(all_hits_matrix)
+
+    import pandas as pd
+    savepath = FOLDER_IN + '{0}_hits_matrix.csv'.format(RNAi)  # PORT: was 'Z://'
+    pd.DataFrame(all_hits_matrix).to_csv(savepath)
+
+    return(all_hits_matrix)
+    # print top_hits, seed, top_hit_vals
+    # return top_hits, seed, top_hit_vals

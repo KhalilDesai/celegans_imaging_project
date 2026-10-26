@@ -58,9 +58,12 @@ def getNDAvgVector(vectors):
 def get_interacting_genes(embdN, printflag=True):
     '''
     Retrieves a list of genes and evidence for interaction from CSV file- this information was mined from SimpleMine on wormbase 6/28/18
+    :param embdN:
+    :return: list of genes, i.e. (
     '''
     gene = getGeneName(embdN)
     data = pd.read_csv(FILENAME_GENE_WB_INFO)
+    # print(data.head(5))
     gene_data = data[data.Sequence_Name == gene]
     interacting_genes = gene_data['Interacting_Gene'].tolist()
     ig_split = interacting_genes[0].split(',')
@@ -69,7 +72,15 @@ def get_interacting_genes(embdN, printflag=True):
 
 
 def check_for_interaction(test_string, embdN):
-    test = test_string
+    '''
+    This function checks for an interaction with a particular gene or can be used to list all genes that have a specific
+    type of interaction i.e. ('Physical', 'Regulatory', 'Genetic')
+    :param test_string: can be a gene name 'mbk-1' or type of interaction 'Regulatory' (note that all interaction types
+     are capatilized
+    :param embdN: EMBD unique id number
+    :return:
+    '''
+    test = test_string  # this can be a gene name (i.e. 'mbk-1') or can be a type of interaction ('Physical', 'Regulatory', 'Genetic')
     interacting = get_interacting_genes(embdN, printflag=False)
     print('all interactions for {0}:\n {1}'.format(embdN, interacting))
     print('interactions matching string:')
@@ -103,10 +114,13 @@ def getEMBDNumber(geneName):
     dataA = np.array(data)
     ind = np.where(dataA == geneName)[0]
     if ind.size > 1:
+        #         print('gene duplicate: {g} {r1} & {r2}'.format(g=geneName, r1=data[ind[0]][0], r2=data[ind[1]][0]))
         ind = ind[0]
-    elif ind.size == 1:  # py2: `ind != [None]` (truthy for a 1-element array)
+    elif ind.size == 1:  # PORT: py2 `ind != [None]` is truthy for a 1-element array, falsy if empty
+        #         print int(data[ind][0][-4:])
         return int(dataA[ind][0][0][-4:])
     else:
+        #         print 'gene not in EMBD list'
         return None
 
 

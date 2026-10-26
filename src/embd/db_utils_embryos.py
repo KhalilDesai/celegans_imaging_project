@@ -34,6 +34,10 @@ def initialize_db():
 
 
 def print_rows(cursor, limit=None):
+    """
+    prints all genes present in the database
+    :return:
+    """
     sql = "SELECT * FROM genes"
     if limit is not None:
         sql += " LIMIT {}".format(limit)
@@ -54,12 +58,22 @@ def get_columns(cursor, table):
 
 
 def get_all_ids(cursor):
+    """
+    calculates total number of gene entries in the database
+    :return: int
+    """
+
     sql = "SELECT id FROM genes"
     cursor.execute(sql)
     return list(np.array(cursor.fetchall()).ravel())
 
 
 def create_param_names(cursor):
+    """
+    adds parameters to the database
+    :return:
+    """
+
     columns = get_columns(cursor, 'genes')
     p_name_prev = ''
     for p_name in PARAM_NAMES:
@@ -80,6 +94,9 @@ def insert_row(colms, cursor, table):
     """
     adds a new row to specified table in mySQL database
     :param colms: dictionary with column names and values
+    :param cursor: cursor
+    :param table: db table
+    :return: None
     """
 
     names = ""
@@ -98,10 +115,10 @@ def insert_row(colms, cursor, table):
                 values += '\'{pv}\', '.format(pv=json.dumps(colms[col]))
             elif not np.isnan(colms[col]):  # if a single value (float or int)
                 names += '{pn}, '.format(pn=col)
-                values += '\'{pv}\', '.format(pv=py2_str(colms[col]))
+                values += '\'{pv}\', '.format(pv=py2_str(colms[col]))  # PORT: py2 str() rendering
             elif np.isnan(colms[col]):
                 names += '{pn}, '.format(pn=col)
-                values += 'NULL, '
+                values += 'NULL, '.format(pv=colms[col])
     names = names[:-2]  # removes the final comma and space from the string
     values = values[:-2]
     sql = "INSERT INTO {t} ({n}) VALUES ({v})".format(t=table, n=names, v=values)
@@ -111,6 +128,11 @@ def insert_row(colms, cursor, table):
 def get_row(myid, cursor, table, colms=None, sonn=False, germ=False, ns=False):
     """
     reads columns in a row from mysql database and returns a dictionary
+    :param myid: row id (int)
+    :param cursor: mysql cursor
+    :param table: table name (str)
+    :param colms: list of names of columns
+    :return: dictionary
     """
 
     sql = "SELECT "
@@ -146,6 +168,11 @@ def get_row(myid, cursor, table, colms=None, sonn=False, germ=False, ns=False):
 def update_row(myid, colms, cursor, table, sonn=False, germ=False):
     """
     update columns in a given row
+    :param myid: row id
+    :param colms: dictionary with column names and values
+    :param cursor: cursor
+    :param table: db table
+    :return:
     """
 
     sql = "UPDATE {t} SET ".format(t=table)
@@ -159,7 +186,7 @@ def update_row(myid, colms, cursor, table, sonn=False, germ=False):
             elif isinstance(colms[col], (list, dict)):
                 sql += '{pn}=\'{pv}\', '.format(pn=col, pv=json.dumps(colms[col]))
             elif not np.isnan(colms[col]):
-                sql += '{pn}={pv}, '.format(pn=col, pv=py2_str(colms[col]))
+                sql += '{pn}={pv}, '.format(pn=col, pv=py2_str(colms[col]))  # PORT: py2 str() rendering
             elif np.isnan(colms[col]):
                 sql += '{pn}=NULL, '.format(pn=col)
     if sonn:

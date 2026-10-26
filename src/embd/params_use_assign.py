@@ -18,6 +18,14 @@ def get_params_use():
     :return: names of parameters
     """
     return globals()[PARAMSETS[os.environ.get('EMBD_PARAMSET', 'opt')]]()  # _group_rank_opt is the published default
+    # Original body (the authors switched sets by commenting/uncommenting these lines):
+    # return _group_rank_opt() #*use this one!
+    # return _lda_group()
+    # return _all()
+    # return _get_pars_rank_all()
+    # return _lda_RNAi()
+    # return _gls_params()
+    # return _ms_params()
 
 
 def _all():
@@ -437,8 +445,8 @@ def _group_rank_opt():
 
 
 def _get_pars_rank_all():
-    from embdFunc import split_params
-    from varLookup import PARAM_NAMES
+    from .embdFunc import split_params  # PORT: package-relative import
+    from .varLookup import PARAM_NAMES  # PORT: package-relative import
     p_pop = ['mG_MS', 'CoM0RstdTail_GLS_GLS', 'scaleHead_MS', 'MoI1GavgRes_MS_MS', 'mRmG_MS', 'MoI1Rscale_GLS_GLS',
              'MoI0Yscale_GLS_GLS', 'tMove_MS', 'CoM1Gtd_MS_MS', 'CoM0Yscale_GLS_GLS', 'MoI0GavgRes_MS_MS', 'mR_MS',
              'sG_GLS', 'CoM1RstdTail_GLS_GLS', 'CoM0Rscale_GLS_GLS', 'devHead_MS', 'CoM0Ytd_GLS_GLS',

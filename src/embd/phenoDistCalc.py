@@ -83,7 +83,8 @@ def getPADS(input):
     print('distance', i)
     distRNAi = []
     for j in range(len(RNAi)):
-        distRNAi.append((RNAi[i].label, RNAi[j].label, RNAi[i].getDistance(RNAi[j]),
+        #         distRNAi.append((RNAi[i].label, RNAi[j].label, 1-RNAi[i].getPAD(RNAi[j]),\
+        distRNAi.append((RNAi[i].label, RNAi[j].label, RNAi[i].getDistance(RNAi[j]), \
                          RNAi[i].getDist2Zero(), RNAi[i].getOverlapDims(RNAi[j]), RNAi[i].getPAD(RNAi[j])))
     distRNAi.sort(key=lambda x: x[2])
     d = distRNAi[::-1]  # sort given rnai list by distance to another rnai (large first)
@@ -91,8 +92,74 @@ def getPADS(input):
 
 
 def optimizePAD(rGroups, c):
-    raise NotImplementedError('phenoDistCalc.optimizePAD was already broken in the original '
-                              '(calls RNAiClass.setNDPosWeights, which does not exist)')
+    # PORT: ported as-is but already broken in the original (RNAiClass.setNDPosWeights does not exist).
+    from lmfit import Parameters, minimize, report_fit, Parameter  # PORT: was a module-level import
+    pGLS = {}
+    pMS = {}
+    pStd = {}
+    sumAll = 0.
+    for key in c.paramsGLS:
+        if key in PARAM_NAMES_USE_GLS:
+            pGLS[key] = c.paramsGLS[key]
+            pStd[key + '_GLS'] = c.paramsGLSstd[key]
+            sumAll += c.paramsGLSstd[key]
+    for key in c.paramsMS:
+        if key in PARAM_NAMES_USE_MS:
+            pMS[key] = c.paramsMS[key]
+            pStd[key + '_MS'] = c.paramsMSstd[key]
+            sumAll += c.paramsMSstd[key]
+
+    nParams = len(pStd)
+    eqWeights = {}
+    for key in pStd:
+        eqWeights[key] = 1. / nParams
+
+    # Use all RNAi mean and std instead of controls
+    pMeanRNAi, pStd = getParamsNorms()
+
+    #     pGLS, pMS = {}, {}
+    #     for key in pMeanRNAi:
+    #         if key[-3:]=='_MS' and key[:-3] in PARAM_NAMES_USE_MS: pMS[key[:-3]] = pMeanRNAi[key]
+    #         elif key[-4:]=='_GLS' and key[:-4] in PARAM_NAMES_USE_GLS: pGLS[key[:-4]] = pMeanRNAi[key]
+
+    def getAvgPAD(weights):
+        pads = []
+        dist20 = []
+        for rList in rGroups:
+            for r in rList:
+                r.setNDPosWeights(pGLS, pMS, pStd, weights)
+                dist20.append(r.getDist2Zero())
+            for i in range(len(rList) - 1):
+                for j in range(i + 1, len(rList)):
+                    r1 = rList[i]
+                    r2 = rList[j]
+                    pads.append(r1.getPAD(r2))
+        if sum(np.isnan(pads)) == len(pads):
+            print('bad value')
+            return 10000.
+        else:
+            #             print (np.nanmean(pads),np.nanmean(dist20))
+            return (1. - np.nanmean(pads))  # /np.nanmean(dist20)
+
+    params = Parameters()
+    expr = '1.'
+    for key in PARAM_NAMES_USE_GLS[1:]:
+        if not np.isnan(pGLS[key]):
+            params.add(key + '_GLS', 1. / nParams, vary=True, min=0, max=1)
+            expr += '-{0}_GLS'.format(key)
+    for key in pMS:
+        if not np.isnan(pMS[key]):
+            params.add(key + '_MS', 1. / nParams, vary=True, min=0, max=1)
+            expr += '-{0}_MS'.format(key)
+    params[PARAM_NAMES_USE_GLS[0] + '_GLS'] = Parameter(value=1. / nParams, expr=expr, min=0., max=1.)
+    minzer = minimize(getAvgPAD, params=params, method='cobyla', options={'maxiter': 1000})
+    res = minzer.params
+    print('successful fit ', minzer.success)
+    print(report_fit(res))
+    print('weight sum={0}'.format(np.sum([res['{0}'.format(key)].value for key in params])))
+    print('number of parameters={0}'.format(nParams))
+    print('optimized weights PAD={0}'.format(1 - getAvgPAD(res)))
+    print('equal weights PAD={0}'.format(1 - getAvgPAD(eqWeights)))
 
 
 def getParamsNorms():
@@ -123,9 +190,11 @@ def get_RNAi_object_list(embd_ids=range(1, 504)):
     :return: a list of RNAi objects for the genes in range
     """
     RNAi = []
-    for i in embd_ids:
+    for i in embd_ids:  # PORT: the original range(1, 504) is the default
+    # for i in range(1, 6):
         try:
             r = RNAiClass(i, verb=True)
+            #             if r.__version__!=embdFunc.get_rnai_revision_version(): r.refreshParamsData()
             r.setNDPosition()
             RNAi.append(r)
         except Exception as e:
@@ -136,6 +205,11 @@ def get_RNAi_object_list(embd_ids=range(1, 504)):
 def calc_pairwise_metrics(RNAi):
     """
     calculates pairwise metrics (distance, PAD, CSI) for a list of RNAi conditions
+    :param RNAi: list of RNAi objects
+    :return: distAll: which is list of lists. each list includes RNAi[i].label, RNAi[j].label, RNAi[i].getDistance(RNAi[j]),\
+                         RNAi[i].getDist2Zero(), RNAi[i].getOverlapDims(RNAi[j]), RNAi[i].getPAD(RNAi[j]))
+            csi: CSI values for i, j pair
+
     """
     print("check params used!")
     pool = mp.Pool(processes=6)
@@ -149,10 +223,16 @@ def calc_pairwise_metrics(RNAi):
 def write_phenodistinfo_to_CSV(RNAi, distAll, csi, fileName=None):
     """
     writes into csv file RNAi pair, distance, distance to wt, dimensions, CSI and PAD values for each pair of RNAi conditions
+    :param RNAi: list of RNAi objects
+    :param distAll: list of lists. each list includes RNAi[i].label, RNAi[j].label, RNAi[i].getDistance(RNAi[j]),\
+                         RNAi[i].getDist2Zero(), RNAi[i].getOverlapDims(RNAi[j]), RNAi[i].getPAD(RNAi[j]))
+    :param csi:
+    :return: writes values to specified csv file
     """
-    if fileName is None:
+    if fileName is None:  # PORT: was 'Z:\\phenoDist_rank_<date>.csv'
         fileName = FOLDER_IN + 'phenoDist_rank_{d}.csv'.format(d=time.strftime('%m%d%Y'))
     fd = open(fileName, 'w', newline='')
+    # fd = open('Z:\\phenoDist_rank_ALL_PARAMS{d}.csv'.format(d=time.strftime('%m%d%Y')), 'w')
 
     pUsed = ''
     for p in PARAM_NAMES_USE_GLS:
@@ -166,15 +246,22 @@ def write_phenodistinfo_to_CSV(RNAi, distAll, csi, fileName=None):
     for i in range(len(RNAi)):
         for j in range(len(RNAi)):
             r1, r2, d, d20, nOv, pad = distAll[i][j]
+            #             print(r1,r2,csi[i][j],d)
             fd.write('{0},{1},{2},{3},{4},{5},{6}\n'.format(r1, r2, py2_str(d), py2_str(d20), py2_str(nOv),
-                                                            py2_str(csi[i][j]), py2_str(pad)))
+                                                            py2_str(csi[i][j]), py2_str(pad)))  # PORT: py2 rendering (B6)
     fd.close()
-    return fileName
+    return fileName  # PORT
 
 
 def write_phenodistinfo_to_mySQL(RNAi, distAll, csi):
     """
-    populates pairwise distance, pad and csi data into the (emulated) MySQL table pair_lookup.
+    populates pairwise distance, pad and csi data into mySQL. Checks for existing entry and if it is present, it updates
+     it, if not it adds it as a new entry
+    :param RNAi: list of RNAi objects
+    :param distAll:  list of lists. each list includes RNAi[i].label, RNAi[j].label, RNAi[i].getDistance(RNAi[j]),\
+                         RNAi[i].getDist2Zero(), RNAi[i].getOverlapDims(RNAi[j]), RNAi[i].getPAD(RNAi[j]))
+    :param csi:
+    :return:
     """
     from .db_utils_embryos import initialize_db, insert_row, update_row
     conn, cursor = initialize_db()
@@ -182,7 +269,10 @@ def write_phenodistinfo_to_mySQL(RNAi, distAll, csi):
 
     for i in range(len(RNAi)):
         print(i)
-        for j in range(len(RNAi)):
+        for j in range(len(RNAi)):  # get all possible unique combinations of i and j
+            rnai1 = RNAi[i]
+            rnai2 = RNAi[j]
+            # sql_rows = cursor.fetchall()
             r1, r2, d, d20, ov_dims, pad = distAll[i][j]
             cs = csi[i][j]
             colms = {'rnai1': int(r1[4:]), 'rnai2': int(r2[4:]), 'dist': d, 'dist2wt': d20, 'dims': ov_dims, 'CSI': cs,
@@ -191,7 +281,7 @@ def write_phenodistinfo_to_mySQL(RNAi, distAll, csi):
                 sql = "SELECT id FROM {t} WHERE rnai1={r1} AND rnai2={r2}".format(t=table, r1=int(r1[4:]), r2=int(r2[4:]))
                 cursor.execute(sql)
                 vals = cursor.fetchall()
-                if len(vals) > 0:
+                if len(vals)>0:
                     update_row(vals[0][0], colms, cursor, table)
                 elif len(vals) == 0:
                     insert_row(colms, cursor, table)
@@ -201,6 +291,8 @@ def write_phenodistinfo_to_mySQL(RNAi, distAll, csi):
 
 def run_phenodistcalc_populate(fileName=None, embd_ids=range(1, 504)):
     '''run phenoDistCalc to populate csv and/or mySQL'''
-    RNAi = get_RNAi_object_list(embd_ids)
+    RNAi = get_RNAi_object_list(embd_ids)  # retrieves a list of RNAi objects for the genes in range (range is defined within this function)
     distAll, csi = calc_pairwise_metrics(RNAi)
-    return write_phenodistinfo_to_CSV(RNAi, distAll, csi, fileName)
+    fileName = write_phenodistinfo_to_CSV(RNAi, distAll, csi, fileName)
+    # write_phenodistinfo_to_mySQL(RNAi, distAll, csi)
+    return fileName  # PORT
