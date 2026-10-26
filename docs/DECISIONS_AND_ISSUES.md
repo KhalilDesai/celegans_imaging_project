@@ -34,6 +34,18 @@ Status tags: `OPEN` (needs decision/info), `FAITHFUL` (kept as-is on purpose),
 | A17 | OPEN | The paper's 500 genes are EMBD 1–500 (maintainer, Q2), but the code and every published output use EMBD 1–503. EMBD 501 (mex-6), 502 (lin-66) and 503 (cuti-1) are seeds and hits, and 501 and 503 belong to manual groups that set the group centroids, auto-descriptions and UMAP overlays. The faithful port keeps 1–503 because removing them would change published results. Restricting to 1–500 would be a deliberate, non-faithful option (a pipeline parameter) needing maintainer approval. |
 | A14 | FACT | The two index files (`Index_…xlsx`, `A Index_…xlsx`) have identical cell contents (514 rows; columns `EMBD ID`, `C. elegans ID`, `Gene Name`) and differ only in xlsx metadata. EMBD 1903 is `hmg-3/hmg-4` and shares C. elegans ID `C32F10.5` with EMBD 3 (`hmg-3`). |
 
+## C2. Context from the lab (received via the maintainer, 2026-10-26)
+
+| # | Status | Note from the lab → what it means here |
+|---|--------|------|
+| C2-1 | FACT | **All-`NULL` columns are artifacts** of how the MySQL table was built (columns generated for parameters never intended to be used). The paper's export removed them, so other workbooks will look different. → Our Zenodo sheet has **no** all-`NULL` parameter columns (checked); it is the cleaned version. A full-table workbook will load fine, since all-NULL columns become NaN and drop out of PAD. |
+| C2-2 | FACT | **Genes after ~1900** are mostly follow-up conditions, often imaged in one strain only and/or with non-standard injection/RNAi regimes, so expect many NULLs there. Some may later get MS data. → Only 1903–1905 are in our sheet. Our pipeline universe is 1–503 (A10, A17). |
+| C2-3 | FACT | **Known to need repeating** (strain mix-ups / missing data): EMBD 1524, 1554, 1900, 1901. → None are in our sheet. If the table is extended, these should be flagged or excluded. |
+| C2-4 | FACT | **Auto-descriptions are probably wrong for ~100–200 genes.** A fix exists in the lab's newer code but has not been checked yet. → Consistent with X6 (published descriptions came from newer, unpublished code). Neither the public code's descriptions (our golden) nor the published ones should be treated as scientifically final. |
+| C2-5 | FACT | **devHead / tailHead issue:** fixed for the first 500 genes and many later ones, but some conditions processed between discovery and fix may not have been re-run. → Consistent with the code comments (head parameters changed 04/07/22; control origin for tailHead/devHead changed 04/12/22; R2, X3). Irregular head parameters in genes beyond 500 have this as a likely cause. |
+| C2-6 | FACT | **"Optimal" vs "all" parameter setting during processing:** a condition accidentally processed with the optimal set has missing values in columns that should be filled. Some conditions between 500 and 1900 may need re-running. → In our sheet, EMBD 478 lacks 2 of the 41 optimal-set parameters and is one of the genes whose values changed after the 2022 runs (X2). This is consistent with, but not proof of, such a re-run. Genes 1, 64, 76, 365 and 1904 lack 18–20 of the 41, which fits a biological "no markers" phenotype (1 and 76 are in the no_markers manual group; 1904 is the RNAP II knockdown). |
+| C2-7 | PROPOSAL | When the full (~1900-gene) table is used, add a **data-quality report** to the loader: all-NULL columns, genes on the known-repeat list, genes imaged in only one strain, and genes missing parameters that most genes have (possible C2-6 cases). It would be read-only and change no results. |
+
 ## B. PAD / ranking algorithm (faithful-port notes)
 
 | # | Status | Finding |
