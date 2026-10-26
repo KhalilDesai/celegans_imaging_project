@@ -1,0 +1,9 @@
+.git
+.venv
+build
+out
+**/__pycache__
+*.pyc
+.pytest_cache
+legacy_baseline
+embryocrop

@@ -9,6 +9,9 @@
     python -m embd.pipeline derived
     python -m embd.pipeline umap      {opt,gls,ms,all}
     python -m embd.pipeline all       # every step, parameter sets in separate processes
+    python -m embd.pipeline reproduce --sheet data/All_genes_mySQL_table.xlsx \
+                                      --index data/Index_EMBD_ID_Gene_names.xlsx --out OUT
+                                      # spreadsheet -> every output, in one command
 
 Environment: EMBD_OUT_DIR (outputs; the original 'Z:/'), EMBD_SQLITE (emulated MySQL file).
 Each parameter-set step runs in its own process with EMBD_PARAMSET set, because the original
@@ -160,6 +163,25 @@ def _sub(*args, paramset=None):
     subprocess.check_call([sys.executable, '-m', 'embd.pipeline'] + list(args), env=env)
 
 
+def reproduce(sheet, index, out):
+    """Spreadsheet -> canonical CSV -> emulated DB -> every pipeline output, all inside ``out``."""
+    from embd_data import sheet as sheetmod
+    out = os.path.abspath(out)
+    canon = os.path.join(out, 'canonical')
+    os.makedirs(canon, exist_ok=True)
+    genes_csv, key_csv = os.path.join(canon, 'genes_table.csv'), os.path.join(canon, 'gene_key.csv')
+    sheetmod.convert_genes_table(sheet, genes_csv)
+    sheetmod.write_gene_key(index, key_csv)
+    os.environ['EMBD_OUT_DIR'] = out
+    os.environ['EMBD_SQLITE'] = os.path.join(out, 'embd.sqlite')
+    if os.path.exists(os.environ['EMBD_SQLITE']):
+        os.remove(os.environ['EMBD_SQLITE'])
+    t0 = time.time()
+    init_db(genes_csv, key_csv)
+    _sub('all')
+    print('reproduce: all outputs in %s (%.0f s)' % (out, time.time() - t0))
+
+
 def main(argv):
     if len(argv) < 2:
         raise SystemExit(__doc__)
@@ -176,6 +198,8 @@ def main(argv):
         padrank()
     elif cmd == 'derived':
         derived()
+    elif cmd == 'reproduce':
+        reproduce(rest[rest.index('--sheet') + 1], rest[rest.index('--index') + 1], rest[rest.index('--out') + 1])
     elif cmd == 'all':
         for s in SETS:
             _sub('phenodist', s, paramset=s)
@@ -188,6 +212,10 @@ def main(argv):
             _sub('umap', s)
     else:
         raise SystemExit(__doc__)
+
+
+def cli():
+    main(sys.argv)
 
 
 if __name__ == '__main__':

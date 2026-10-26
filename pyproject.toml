@@ -2,7 +2,6 @@
 name = "embd"
 version = "0.1.0.dev0"
 description = "Python 3 port of the EMBD downstream analysis (Green et al. 2024, Cell): PAD similarity, rankings, matches, groups, UMAP"
-readme = "README.md"
 requires-python = ">=3.12,<3.13"
 license = { text = "See LICENSE / upstream repository" }
 dependencies = [
@@ -19,6 +18,9 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest>=8"]
+
+[project.scripts]
+embd = "embd.pipeline:cli"
 
 [build-system]
 requires = ["hatchling>=1.25"]
