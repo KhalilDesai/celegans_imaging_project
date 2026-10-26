@@ -186,9 +186,9 @@ def test_derived_outputs_identical(full_run, golden_name, port_name):
 
 @pytest.mark.slow
 def test_pad_rank(full_run):
-    """N2: ranks exact; stored PADs identical after the MySQL FLOAT rendering the code reads (thresholds
-    0.5 / 0.55 act on these) and within 1 ulp raw (legacy SQLite's decimal parser is not correctly rounded)."""
-    from embd_data.mysql_emulation import mysql_float_render
+    """N2: ranks exact. Stored PADs are the phenoDist PAD text (12 significant digits), so the approved N1 rule
+    applies (APPROVED 2026-10-26, N1 "Platform"): <= 2 units in the 12th significant digit. This covers the
+    legacy SQLite 1-ulp parsing (N2) and a BLAS-dependent flip of the 12th digit (e.g. Accelerate vs OpenBLAS)."""
     g = list(csv.reader(golden_lines('pad_rank.csv')))
     with open(os.path.join(full_run, 'pad_rank_port.csv'), encoding='utf-8') as f:
         p = list(csv.reader(f.read().splitlines()))
@@ -198,8 +198,8 @@ def test_pad_rank(full_run):
         for k, name in enumerate(h):
             if name.startswith('pad'):
                 x, y = float(a[k]), float(b[k])
-                assert mysql_float_render(x) == mysql_float_render(y), (a[1], name)
-                assert abs(x - y) <= np.spacing(max(abs(x), abs(y))), (a[1], name, x, y)
+                unit = 10.0 ** (np.floor(np.log10(abs(x))) - 11) if x != 0 else 1e-300  # as compare_phenodist
+                assert abs(x - y) <= TEXT_12TH_DIGIT_UNITS * unit, (a[1], name, x, y)
             else:
                 assert a[k] == b[k], (a[1], name)
 

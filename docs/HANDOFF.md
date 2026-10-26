@@ -16,21 +16,21 @@ Scientific correctness comes first: the port must reproduce the original code's 
 | 1 Data layer + legacy baseline | done. The original Py2.7 code was run unmodified (Docker, `legacy_baseline/`); its outputs are frozen in `tests/golden/` (maintainer chose option a) |
 | 2 Python 3 port | done: `src/embd/` (names mirror the originals), `src/embd_data/` (spreadsheet → SQLite MySQL emulation) |
 | 3 Performance | done: full pipeline ≈ 145 s natively, outputs byte-identical to before the optimisations |
-| 4 Reproducibility | **in progress** (see below) |
+| 4 Reproducibility | done except the README (see below) |
 
 ## Phase 4: what exists and what's left
 - Done: `uv.lock`; `Dockerfile` (base images pinned by digest, `runtime` and `test` targets, non-root user,
-  data at `/data`, outputs at `/out`); `python -m embd.pipeline reproduce --sheet … --index … --out …`.
-- **Not verified yet in a container.** The first attempt on an 8 GB laptop exhausted Docker Desktop's 4 GB VM
-  and froze the machine. Next steps:
-  1. **Memory optimisation** (requested by the maintainer; "don't make it too slow"): measure peak RSS per
-     pipeline step natively (`/usr/bin/time -l`), then slim the hungriest step. Prime suspect: `bestmatches`,
-     which holds the four 253k-row phenoDist CSVs as Python lists at once. Keep outputs **byte-identical**,
-     record before/after memory and time in `docs/PERFORMANCE.md`, one commit per change.
-  2. Re-run the container with an explicit cap (`docker run --memory=3g …`), then the test image against its
-     output (`docker run -e EMBD_PORT_RUN_DIR=/run -v …:/run:ro embd:test -q -m "slow or not slow"`).
-  3. Apptainer/Singularity recipe; `Makefile` (`make test`, `make reproduce`, …); GitHub Actions workflow
-     (build image + tests); `docs/RANDOMNESS.md` (UMAP seeded 71076; single-threaded BLAS/numba in the image).
+  data at `/data`, outputs at `/out`); `python -m embd.pipeline reproduce --sheet … --index … --out …`;
+  `Makefile` (`make test`, `make reproduce`, `make docker-build`, `make docker-reproduce`, `make docker-test`, …);
+  `apptainer.def`; `.github/workflows/ci.yml`; `docs/RANDOMNESS.md`; `tools/mem_profile.sh`.
+- Memory (2026-10-26): every step peaks ≤ 0.46 GB natively (PERFORMANCE "Memory", #5). The earlier freeze was
+  most likely the fixed 4 GB Docker VM on an 8 GB host. Still always cap containers (`make docker-reproduce`
+  uses `--memory=3g`).
+- Container verified on a 16 GB Apple-silicon Mac (Docker Desktop, 8 GB VM): full pipeline 236 s, peak 431 MiB;
+  all 56 tests pass on its outputs. Native macOS and the image differ in the last bits (Accelerate vs OpenBLAS;
+  NUMERICAL_DIFFERENCES N1 "Platform"); rankings identical. For byte-identical outputs, use the image.
+- Not yet run: the Apptainer build (no Apptainer on the dev machines) and the CI workflow (runs on push; GitHub
+  runners are amd64, so outputs may again differ in the last bits from arm64, within N1).
 - **README: on hold.** The maintainer wants a guided walk-through of the code first.
 
 ## Working agreements with the maintainer
