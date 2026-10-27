@@ -64,6 +64,7 @@ Status tags: `OPEN` (needs decision/info), `FAITHFUL` (kept as-is on purpose),
 | B11 | FAITHFUL | `RNAiClass.paramsUseGLS/MS` are built from dict iteration (order differs py2 vs py3). They are only used for membership tests and counting, never for vector order (`posND` is indexed by the `PARAM_NAMES` list). So dict-order changes do **not** affect PAD. |
 | B12 | FACT | `self.pNamesUse = np.array([GLS_list, MS_list])` builds a ragged 2-element object array. numpy ≥1.24 raises `ValueError`. Port: `np.array([...], dtype=object)`, which behaves the same. |
 | B13 | FAITHFUL | `getPAD`: when `d(a,0)+d(b,0) == 0`, the result is NaN and `pad > 0` is False, so it returns 0. This includes a gene compared with itself if its distance to control is 0. Kept. |
+| B14 | FACT | The optimal parameter set was selected **before** the pipeline, by a hand-run 2018 optimisation (greedy backward elimination on within-group PAD ranks, 18 leave-one-group-out runs, inferred) whose code is in the original `development/groupAssesment.py` and is **not ported**; the pipeline reads the hardcoded result (`_group_rank_opt`, B3). Details and consequences: `docs/PARAMETER_SELECTION.md`. |
 
 ## C. Groups / UMAP / figures
 
