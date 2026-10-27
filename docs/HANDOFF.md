@@ -37,6 +37,8 @@ Scientific correctness comes first: the port must reproduce the original code's 
 - **README: on hold.** The maintainer wants a guided walk-through of the code first.
 
 ## Working agreements with the maintainer
+- **Never write to the image data.** `/Volumes/embd_ark1` (the archive drive) and `~/embd_ro` (the lab share,
+  mounted read-only) are read-only for us: no edits, no new files, no deletes. All outputs go to local disk (`build/`).
 - Faithful first. Don't change scientific behaviour without approval. Log every finding/decision in
   `docs/DECISIONS_AND_ISSUES.md`. If a library upgrade changes numbers, stop and show the size.
 - Before anything heavy (more than a minute, or lots of memory), check free memory and ask. Never run the full

@@ -52,3 +52,17 @@ scientific inputs that exist nowhere else:
 Produced in Phase 1 by `legacy_baseline/` (Python 2.7 in Docker, original code unmodified, MySQL replaced by the
 SQLite emulation), from the Zenodo table. They are the regression reference for the port (DECISIONS X4 option a).
 Provenance (image digests, package versions, input checksum) is in `tests/golden/provenance.json`.
+
+## 6. Raw image data (for the image-analysis port; added 2026-10-26)
+
+Not public. Two copies, both **strictly read-only for this project** (maintainer: no editing of the drive):
+
+| Location | What | State |
+|---|---|---|
+| `/Volumes/embd_ark1/embd_cropped/` (24 TB exFAT archive drive, 5.6 TB used) | cropped embryos, EMBD0001–0532 complete; `EMBDnnnn/{GLS,MS}/EmbN/` with one TIFF per time point × z × channel (GLS embryo: 31 × 18 × 3), an `_All.tif`, `emb.pkl` (the original per-embryo object, 2017, Python 2 pickle with the per-embryo parameters) and `batch-output/` (Imaris spot-detection exports read by `Embryos.loadAllSpots`) | EMBD0533 partial (copy stopped); EMBD0114 had a logged size mismatch (`embd_copy_log.txt`), to re-verify |
+| `~/embd_ro/embdev/cropped/` (lab share `od-smd.ucsd.edu/projects`, SMB, mounted read-only) | the source of the drive copy (≈ 2,500 conditions) **and the controls, `EMBD0000/`**, organised by imaging date (`GLS/`, `MS/`, plus `GL/`, `M/`, `4xMS/`), as `ControlClass.defineFolders` expects | the controls are **not yet on the drive** |
+
+**To do (maintainer, planned for 2026-10-27):** copy `EMBD0000` from the share to the drive. Until then the
+image port reads the controls directly from the read-only share. The GLS nuclear counts come from **Imaris**
+(commercial); the port uses the existing Imaris exports as fixed inputs (maintainer decision 2026-10-26).
+
