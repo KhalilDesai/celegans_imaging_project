@@ -1,6 +1,6 @@
 # Handoff: where the port stands (for a new Claude Code session or a new machine)
 
-Read this first, then `docs/PORTING_PLAN.md`, `docs/DECISIONS_AND_ISSUES.md`,
+Index of all notes: `docs/README.md`. Read this first, then `docs/PORTING_PLAN.md`, `docs/DECISIONS_AND_ISSUES.md`,
 `docs/NUMERICAL_DIFFERENCES.md` and `docs/PERFORMANCE.md`.
 
 ## The project in one paragraph
