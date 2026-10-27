@@ -15,6 +15,7 @@ list them here.
 |---|---|
 | `DATA_SOURCES.md` | Where every input comes from (Zenodo, the GitHub code, reconstructed files, golden outputs). |
 | `PARAMETER_TABLE.md` | The input table: rows, columns, units, what each parameter family means. |
+| `CONTROLS_AND_NORMALISATION.md` | What the control is, how genes are normalised against it, and how sound that is (with numbers). |
 | `PARAMETER_SELECTION.md` | How the "optimal" 41-parameter set was chosen (a 2018 optimisation, not ported). |
 | `RANDOMNESS.md` | What can make two runs differ, and how the port keeps runs reproducible. |
 | `PORTING_PLAN.md` | The Phase 0 audit: scope, module map, dependencies, plan. |

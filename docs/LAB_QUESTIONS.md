@@ -70,3 +70,7 @@ pin down the remaining differences. Internal references (A6, X2, …) point to o
 11. **Group-centroid PAD.** In `find_closest_groups`, when a gene shares no parameters with a group
     centroid, the distance becomes 0 and the PAD becomes 1 (a perfect match), the opposite of the
     gene-to-gene PAD, which gives 0. Is that intended? *(G4)*
+12. **Per-embryo data.** Could you share the per-embryo `embryos` table (each embryo's parameters, movement and
+    fit-quality flags) for EMBD 1–503 and the controls? Gene values are per-parameter medians, sometimes over
+    different embryos; with it we could check whether that creates composite phenotypes when penetrance is
+    incomplete, and confirm how `controlOrigin` and `rnaiStd` were computed. *(B15, R1)*
